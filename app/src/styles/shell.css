@@ -1,0 +1,51 @@
+.shell { min-height: 100vh; min-height: 100dvh; }
+.nav {
+  position: fixed; z-index: 10; display: flex;
+  background: var(--desk-raised); border-color: var(--desk-line); border-style: solid; border-width: 0;
+}
+.nav a, .nav button.account {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: var(--touch); min-height: var(--touch); color: var(--ash-soft);
+  text-decoration: none; font-size: var(--fs-13); background: none; border: 0; cursor: pointer;
+}
+.nav a:hover, .nav a[aria-current='page'] { color: var(--ash); }
+.nav a[aria-current='page']::after {
+  content: ''; position: absolute; width: 18px; height: 2px; border-radius: 2px; background: var(--flame);
+  inset-block-end: 4px;
+}
+.nav a.write { color: var(--on-flame); }
+.nav a.write .write-disc {
+  display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%;
+  background: var(--flame); color: var(--on-flame); box-shadow: 0 0 24px var(--flame-glow);
+}
+.nav a.write[aria-current='page']::after { display: none; }
+.nav a.write span.lbl { color: var(--ash-soft); }
+.nav .account-initial {
+  display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid var(--desk-line); color: var(--ash); font-weight: 600;
+}
+.main { padding-block-end: calc(var(--bar-h) + env(safe-area-inset-bottom)); }
+
+/* Phone: bottom bar */
+.nav {
+  inset-inline: 0; inset-block-end: 0; height: calc(var(--bar-h) + env(safe-area-inset-bottom));
+  padding-block-end: env(safe-area-inset-bottom);
+  justify-content: space-around; align-items: center; border-block-start-width: 1px;
+}
+.nav .account-wrap, .nav .rail-spacer { display: none; }
+.nav a.write { margin-block-start: -18px; }
+
+/* Desktop: slim left rail */
+@media (min-width: 900px) {
+  .nav {
+    inset-inline: auto; inset-inline-start: 0; inset-block: 0; width: var(--rail-w); height: auto;
+    flex-direction: column; justify-content: flex-start; gap: var(--sp-3); padding: var(--sp-5) 0;
+    border-block-start-width: 0; border-inline-end-width: 1px;
+  }
+  .nav a { width: 100%; min-height: 56px; }
+  .nav a.write { margin-block-start: 0; }
+  .nav a[aria-current='page']::after { inset-block-end: auto; inset-inline-start: 0; width: 2px; height: 24px; }
+  .nav .rail-spacer { display: block; flex: 1; }
+  .nav .account-wrap { display: flex; justify-content: center; }
+  .main { padding-inline-start: var(--rail-w); padding-block-end: 0; }
+}

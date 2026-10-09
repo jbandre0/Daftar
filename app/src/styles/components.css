@@ -1,0 +1,88 @@
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  min-height: var(--touch); padding: 0 var(--sp-5);
+  border: 0; border-radius: var(--r-ui); cursor: pointer;
+  font-family: var(--font-ui); font-size: var(--fs-15); font-weight: 600;
+}
+.btn-primary { background: var(--flame); color: var(--on-flame); }
+.btn-primary:hover { filter: brightness(1.06); }
+.btn-quiet {
+  background: none; color: var(--ash); padding: 0 var(--sp-3);
+  text-decoration: underline transparent; text-underline-offset: 3px;
+  transition: text-decoration-color var(--t-fast);
+}
+.btn-quiet:hover { text-decoration-color: currentColor; }
+
+/* Pills */
+.pill {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  min-height: 32px; padding: 0 var(--sp-3);
+  border: 1px solid var(--page-line); border-radius: var(--r-pill);
+  background: transparent; color: var(--ink-soft);
+  font-family: var(--font-ui); font-size: var(--fs-13); font-weight: 600; letter-spacing: 0.04em;
+}
+.pill-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--olive); }
+
+/* The page: parchment on the desk */
+.page {
+  position: relative; max-width: calc(66ch + 2 * var(--page-pad)); margin-inline: auto;
+  padding: var(--sp-6) var(--page-pad);
+  color: var(--ink); background-color: var(--page);
+  background-image:
+    linear-gradient(135deg, var(--page-wash), transparent 45%),
+    url('/grain.svg');
+  background-size: auto, 200px 200px;
+  border-radius: var(--r-paper); box-shadow: var(--page-shadow);
+  font-family: var(--font-serif); font-size: var(--fs-body); line-height: 1.7;
+}
+.page :dir(rtl) { line-height: 1.9; }
+.page-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2);
+  padding-block-end: var(--sp-3); margin-block-end: var(--sp-4);
+  border-block-end: 1px solid var(--page-line);
+}
+.page-date {
+  flex-basis: 100%; font-size: var(--fs-display); font-style: italic; line-height: 1.2;
+  font-variation-settings: 'opsz' 72;
+}
+.page .meta { color: var(--ink-soft); font-family: var(--font-ui); font-size: var(--fs-13); }
+.page p + p { margin-block-start: 1em; }
+.page h2 { font-weight: 600; font-size: var(--fs-22); margin-block: 1.2em 0.4em; line-height: 1.3; }
+.page .save-status {
+  margin-block-start: var(--sp-5); font-family: var(--font-ui); font-size: var(--fs-13); color: var(--ink-soft);
+}
+
+/* Cards on the desk */
+.card {
+  background: var(--desk-raised); border: 1px solid var(--desk-line);
+  border-radius: var(--r-ui); padding: var(--sp-5);
+}
+.card h2 { font-family: var(--font-serif); font-size: var(--fs-22); font-weight: 600; color: var(--ash); margin-block-end: var(--sp-2); }
+.card p { color: var(--ash-soft); }
+
+/* Screen title */
+.screen { padding: var(--sp-6) var(--sp-4) var(--sp-8); max-width: 960px; margin-inline: auto; }
+.screen-title {
+  font-family: var(--font-serif); font-style: italic; font-size: var(--fs-display);
+  font-variation-settings: 'opsz' 72; line-height: 1.2; color: var(--ash); margin-block-end: var(--sp-2);
+}
+.screen-sub { color: var(--ash-soft); font-size: var(--fs-17); margin-block-end: var(--sp-6); max-width: 56ch; }
+.stack { display: grid; gap: var(--sp-4); }
+.row { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; }
+
+/* Phase marker for stubbed screens */
+.stub-note { color: var(--ash-soft); font-size: var(--fs-13); margin-block-start: var(--sp-5); }
+
+/* Theme switch */
+.seg { display: inline-flex; border: 1px solid var(--desk-line); border-radius: var(--r-ui); overflow: hidden; }
+.seg button {
+  min-height: var(--touch); padding: 0 var(--sp-4); background: none; border: 0; cursor: pointer; color: var(--ash-soft);
+}
+.seg button[aria-pressed='true'] { background: var(--flame); color: var(--on-flame); font-weight: 600; }
+
+/* Swatches (dev reference on Settings) */
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--sp-2); }
+.swatch { border: 1px solid var(--desk-line); border-radius: var(--r-ui); overflow: hidden; font-size: var(--fs-13); }
+.swatch i { display: block; height: 32px; }
+.swatch span { display: block; padding: var(--sp-1) var(--sp-2); color: var(--ash-soft); }

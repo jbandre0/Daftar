@@ -1,0 +1,91 @@
+/* Lamplight (dark, default) and Daylight (light). Every colour in the app comes from here. */
+:root,
+:root[data-theme='lamplight'] {
+  --desk: #17110c;
+  --desk-raised: #221912;
+  --desk-line: #3a2b1f;
+  --page: #e4d3b0;
+  --page-line: #cbb68f;
+  --ink: #2a1f16;
+  --ink-soft: #6b5640;
+  --ash: #dccbb0;
+  --ash-soft: #a38f74;
+  --flame: #e2a24c;
+  --on-flame: #2a1f16;
+  --flame-glow: rgba(240, 168, 80, 0.16);
+  --olive: #8a9663;
+  --seal: #8c2f22;
+  --on-seal: #e4d3b0;
+  --vignette: rgba(0, 0, 0, 0.45);
+  --page-shadow: 0 1px 0 rgba(0, 0, 0, 0.25), 0 24px 48px -16px rgba(0, 0, 0, 0.6);
+  --page-wash: rgba(255, 224, 170, 0.1);
+  --scrim: rgba(23, 17, 12, 0.7);
+}
+
+:root[data-theme='daylight'] {
+  --desk: #e9dfcb;
+  --desk-raised: #f1e8d6;
+  --desk-line: #d6c7ab;
+  --page: #fbf6ea;
+  --page-line: #e7dcc4;
+  --ink: #2b241c;
+  --ink-soft: #6e604e;
+  --ash: #3b3127;
+  --ash-soft: #6a5d4b; /* spec #786A57 fails AA (3.97) */
+  --flame: #8f5311; /* spec #A8641C fails AA as text (3.53) */
+  --on-flame: #fbf6ea;
+  --flame-glow: rgba(255, 214, 150, 0.35);
+  --olive: #56613a; /* spec #5E6A40 gave 4.40 */
+  --seal: #8c2f22;
+  --on-seal: #fbf6ea;
+  --vignette: rgba(0, 0, 0, 0.12);
+  --page-shadow: 0 1px 0 rgba(60, 40, 10, 0.15), 0 18px 36px -16px rgba(80, 55, 20, 0.35);
+  --page-wash: rgba(255, 236, 190, 0.35);
+  --scrim: rgba(233, 223, 203, 0.75);
+}
+
+:root {
+  /* Type */
+  --font-serif: 'Daftar Serif', 'Daftar Naskh', Georgia, serif;
+  --font-ui: 'Daftar Sans', 'Daftar Plex Arabic', system-ui, sans-serif;
+  --fs-13: 0.8125rem;
+  --fs-15: 0.9375rem;
+  --fs-17: 1.0625rem;
+  --fs-19: 1.1875rem;
+  --fs-22: 1.375rem;
+  --fs-28: 1.75rem;
+  --fs-36: 2.25rem;
+  --fs-body: 1.125rem; /* 18px phone */
+  --fs-display: var(--fs-28);
+
+  /* Spacing (4px base) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --sp-8: 64px;
+
+  /* Shape */
+  --r-paper: 2px;
+  --r-ui: 8px;
+  --r-pill: 999px;
+  --touch: 44px;
+  --page-pad: 20px;
+  --rail-w: 76px;
+  --bar-h: 64px;
+
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --t-fast: 150ms;
+  --t-turn: 180ms;
+}
+
+@media (min-width: 900px) {
+  :root {
+    --fs-body: 1.1875rem; /* 19px desktop */
+    --fs-display: var(--fs-36);
+    --page-pad: 48px;
+  }
+}
