@@ -26,4 +26,6 @@ App lives in `app/`: Vite + React + TypeScript, vite-plugin-pwa, react-router, P
 `cd app && npm run dev | build | typecheck`
 
 ## Status
+Phase 1 built: `supabase/migrations/0001_init.sql`, `supabase/tests/rls.test.sql` (also `cd app && npm run db:test`, 49 checks on PGlite), magic-link + 6-digit-code login, route guard. Pending: user applies migration + runs test in the Supabase SQL editor; Opus review of RLS/can_write/can_edit.
+Decisions: `can_write` requires status='trial' (so refunded never writes); `can_edit` = unlocked or trial+48h grace; tracks are copied per account by the signup trigger; entry_versions is insert-only from the client.
 Phase 0 complete (scaffold, tokens, fonts, both themes, nine routed stub screens, PWA manifest + service worker).
