@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Shell } from './components/Shell'
+import { RequireAuth } from './components/RequireAuth'
 import { Onboarding } from './screens/Onboarding'
 import { Desk } from './screens/Desk'
 import { Write } from './screens/Write'
@@ -14,15 +15,17 @@ export function App() {
   return (
     <Routes>
       <Route path="/welcome" element={<Onboarding />} />
-      <Route element={<Shell />}>
-        <Route index element={<Desk />} />
-        <Route path="write" element={<Write />} />
-        <Route path="browse" element={<Browse />} />
-        <Route path="read" element={<Read />} />
-        <Route path="chapters" element={<Chapters />} />
-        <Route path="letters" element={<Letters />} />
-        <Route path="vault" element={<Vault />} />
-        <Route path="settings" element={<Settings />} />
+      <Route element={<RequireAuth />}>
+        <Route element={<Shell />}>
+          <Route index element={<Desk />} />
+          <Route path="write" element={<Write />} />
+          <Route path="browse" element={<Browse />} />
+          <Route path="read" element={<Read />} />
+          <Route path="chapters" element={<Chapters />} />
+          <Route path="letters" element={<Letters />} />
+          <Route path="vault" element={<Vault />} />
+          <Route path="settings" element={<Settings />} />
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

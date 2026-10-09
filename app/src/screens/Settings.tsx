@@ -1,5 +1,7 @@
 import { Screen } from '../components/Screen'
 import { useTheme } from '../theme'
+import { useAuth } from '../auth'
+import { trialDaysLeft, writeState } from '../lib/account'
 
 const TOKENS = [
   'desk', 'desk-raised', 'desk-line', 'page', 'page-line', 'ink', 'ink-soft', 'ash', 'ash-soft', 'flame', 'olive', 'seal',
@@ -7,9 +9,32 @@ const TOKENS = [
 
 export function Settings() {
   const { theme, setTheme } = useTheme()
+  const { session, profile, license, signOut } = useAuth()
+  const state = writeState(license)
+
   return (
-    <Screen title="Settings" sub="Account and preferences." phase={10}>
+    <Screen title="Settings" sub="Account and preferences.">
       <div className="stack">
+        <div className="card">
+          <h2>Account</h2>
+          <p>
+            {profile?.display_name ? `${profile.display_name} · ` : ''}
+            {session?.user.email}
+          </p>
+          {license && (
+            <p style={{ marginBlockStart: 'var(--sp-2)' }}>
+              {state === 'trial' && `Your trial ends in ${trialDaysLeft(license)} days. Everything you've written stays yours either way.`}
+              {state === 'grace' && 'Your trial has just ended. Edits to existing entries still save for a little while.'}
+              {state === 'readonly' && "Your trial has ended. You can still read and export everything."}
+              {state === 'unlocked' && 'Daftar is yours.'}
+            </p>
+          )}
+          <div className="row" style={{ marginBlockStart: 'var(--sp-4)' }}>
+            <button className="btn btn-quiet" onClick={() => void signOut()}>
+              Sign out
+            </button>
+          </div>
+        </div>
         <div className="card">
           <h2>Theme</h2>
           <p style={{ marginBlockEnd: 'var(--sp-4)' }}>Lamplight is the desk at night. Daylight is the same desk by a window.</p>
@@ -34,6 +59,7 @@ export function Settings() {
           </div>
         </div>
       </div>
+      <p className="stub-note">Default language, reminders and account deletion arrive in phase 10.</p>
     </Screen>
   )
 }

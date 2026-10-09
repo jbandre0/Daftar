@@ -86,3 +86,16 @@
 .swatch { border: 1px solid var(--desk-line); border-radius: var(--r-ui); overflow: hidden; font-size: var(--fs-13); }
 .swatch i { display: block; height: 32px; }
 .swatch span { display: block; padding: var(--sp-1) var(--sp-2); color: var(--ash-soft); }
+
+/* Forms */
+.field input {
+  width: 100%; min-height: var(--touch); padding: 0 var(--sp-3);
+  color: var(--ash); background: var(--desk); border: 1px solid var(--desk-line); border-radius: var(--r-ui);
+  font-family: var(--font-ui); font-size: var(--fs-17);
+}
+.field input::placeholder { color: var(--ash-soft); }
+.field input:focus-visible { border-color: var(--flame); }
+.btn:disabled { opacity: 0.55; cursor: default; }
+.form-error { color: var(--ash); border-inline-start: 2px solid var(--seal); padding-inline-start: var(--sp-3); }
+.fine { font-size: var(--fs-13); }
+.auth { max-width: 480px; padding-block-start: var(--sp-8); }

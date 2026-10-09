@@ -1,9 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { useAuth } from '../auth'
 import { Lamp, MagnifyingGlass, PencilSimple, Envelope, Vault as VaultIcon } from '@phosphor-icons/react'
 
 const ICON = { size: 20, weight: 'light' as const }
 
 export function Shell() {
+  const { profile, session } = useAuth()
+  const initial = (profile?.display_name || session?.user.email || '·').trim().charAt(0).toUpperCase()
   return (
     <div className="shell">
       <nav className="nav" aria-label="Main">
@@ -32,7 +35,7 @@ export function Shell() {
         <div className="rail-spacer" />
         <div className="account-wrap">
           <NavLink to="/settings" aria-label="Settings and account">
-            <span className="account-initial">J</span>
+            <span className="account-initial">{initial}</span>
           </NavLink>
         </div>
       </nav>

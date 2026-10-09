@@ -7,15 +7,18 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "db:test": "node scripts/db-test.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
+    "@supabase/supabase-js": "^2.117.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@fontsource-variable/literata": "^5.3.0",
     "@fontsource-variable/source-sans-3": "^5.3.0",
     "@fontsource/ibm-plex-sans-arabic": "^5.3.0",
