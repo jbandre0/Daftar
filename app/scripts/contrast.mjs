@@ -13,7 +13,7 @@ const over = (fg, a, bg) => fg.map((v, i) => v * a + bg[i] * (1 - a))
 const themes = {
   lamplight: {
     desk: '#1F150F', raised: '#2E2019', ash: '#F1E6CF', ashSoft: '#BBA586', flame: '#F0A743', onFlame: '#2A1A0C',
-    olive: '#A9B37E', onSeal: '#F1E6CF', seal: '#8C2F22', ink: '#2A1F16', inkSoft: '#54422F', flameText: '#F0A743',
+    olive: '#B9A77A', onSeal: '#F1E6CF', seal: '#8C2F22', ink: '#2A1F16', inkSoft: '#54422F', flameText: '#F0A743',
     glass: [247, 238, 218, 0.72], veil: [24, 12, 4, 0.62], glassIsCard: false,
   },
   daylight: {

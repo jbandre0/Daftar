@@ -323,12 +323,17 @@
 .cal-dow { text-align: center; padding-block: var(--sp-2); color: var(--ash-soft); font-size: var(--fs-13); font-weight: 600; letter-spacing: 0.08em; }
 :root[data-theme='daylight'] .cal-dow { color: var(--ash); }
 .cal-day {
-  position: relative; display: grid; grid-template-rows: 1fr auto auto; justify-items: center; align-content: center; gap: 2px;
-  min-height: 58px; padding: 6px 0 6px; background: none; border: 0; border-radius: 14px; color: var(--ash);
+  position: relative; isolation: isolate; display: grid; grid-template-rows: 1fr auto auto; justify-items: center; align-content: center; gap: 2px;
+  min-height: 58px; padding: 6px 0 4px; background: none; border: 0; border-radius: 12px; color: var(--ash);
   font-family: var(--font-ui); cursor: pointer;
 }
-.cal-day:hover { background: var(--tint); }
-.cal-day[aria-pressed='true'] { background: var(--tint-strong); outline: 1px solid var(--flame); }
+/* the highlight sits above the chapter line, never over it */
+.cal-day::before {
+  content: ''; position: absolute; z-index: -1; inset: 2px 3px 8px; border-radius: 12px; border: 1px solid transparent;
+  transition: background-color var(--t-fast), border-color var(--t-fast);
+}
+.cal-day:hover::before { background: var(--tint); }
+.cal-day[aria-pressed='true']::before { background: var(--tint-strong); border-color: var(--flame); }
 .cal-num { align-self: end; font-size: var(--fs-15); font-variant-numeric: tabular-nums; }
 .cal-day[data-today] .cal-num { font-weight: 700; text-decoration: underline; text-decoration-color: var(--flame); text-underline-offset: 4px; text-decoration-thickness: 2px; }
 .cal-day:not([data-has]) .cal-num { color: var(--ash-soft); }
@@ -336,8 +341,8 @@
 .cal-dots { display: flex; gap: 3px; block-size: 8px; align-items: center; }
 .cal-dots i { inline-size: 7px; block-size: 7px; background: var(--flame); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 :root[data-theme='daylight'] .cal-dots i { background: var(--flame-text); }
-.cal-bars { display: flex; gap: 2px; inline-size: 100%; block-size: 3px; }
-.cal-bars i { flex: 1; background: var(--c); opacity: 0.85; }
+.cal-bars { display: flex; gap: 2px; inline-size: 100%; block-size: 2px; margin-block-start: 3px; }
+.cal-bars i { flex: 1; background: var(--c); opacity: 0.6; border-radius: 1px; }
 .day-panel { margin-block-start: var(--sp-5); }
 .day-head { justify-content: space-between; margin-block-end: var(--sp-3); }
 .day-head .section-label { margin: 0; }
