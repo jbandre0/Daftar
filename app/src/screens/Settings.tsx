@@ -9,7 +9,7 @@ const TOKENS = [
 ]
 
 export function Settings() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, writing, setWriting } = useTheme()
   const { session, profile, license, signOut } = useAuth()
   const state = writeState(license)
 
@@ -40,6 +40,21 @@ export function Settings() {
         <TracksCard />
         <TagsCard />
         <LanguageCard />
+        <div className="card">
+          <h2>Writing style</h2>
+          <p style={{ marginBlockEnd: 'var(--sp-4)' }}>
+            Book is a warm reading serif, easy over long entries. Handwriting is a hairline script, lovely for a few lines and harder to read
+            at length. Arabic always stays in Naskh.
+          </p>
+          <div className="seg" role="group" aria-label="Writing style">
+            <button aria-pressed={writing === 'book'} onClick={() => setWriting('book')}>
+              Book
+            </button>
+            <button aria-pressed={writing === 'hand'} onClick={() => setWriting('hand')}>
+              Handwriting
+            </button>
+          </div>
+        </div>
         <div className="card">
           <h2>Theme</h2>
           <p style={{ marginBlockEnd: 'var(--sp-4)' }}>Lamplight is the desk at night. Daylight is the same desk by a window.</p>

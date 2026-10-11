@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Parchment } from './Parchment'
 import { useAuth } from '../auth'
 import { Lamp, MagnifyingGlass, PencilSimple, Envelope, Vault as VaultIcon } from '@phosphor-icons/react'
 
@@ -6,9 +7,12 @@ const ICON = { size: 20, weight: 'light' as const }
 
 export function Shell() {
   const { profile, session } = useAuth()
+  const { pathname } = useLocation()
+  const paper = /^(\/dev)?\/(write|read)(\/|$)/.test(pathname)
   const initial = (profile?.display_name || session?.user.email || '·').trim().charAt(0).toUpperCase()
   return (
-    <div className="shell">
+    <div className="shell" data-surface={paper ? 'paper' : 'desk'}>
+      <Parchment />
       <nav className="nav" aria-label="Main">
         <NavLink to="/" end>
           <Lamp {...ICON} aria-hidden />
@@ -19,8 +23,10 @@ export function Shell() {
           <span>Browse</span>
         </NavLink>
         <NavLink to="/write" className="write">
-          <span className="write-disc">
-            <PencilSimple size={24} weight="light" aria-hidden />
+          <span className="write-glow">
+            <span className="write-diamond">
+              <PencilSimple size={24} weight="light" aria-hidden />
+            </span>
           </span>
           <span className="lbl">Write</span>
         </NavLink>

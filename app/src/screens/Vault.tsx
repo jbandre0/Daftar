@@ -112,7 +112,7 @@ export function Vault() {
 
         {(restore.step === 'idle' || restore.step === 'invalid' || restore.step === 'done' || restore.step === 'failed') && (
           <div className="row">
-            <button className="btn btn-quiet" disabled={!canRestore} onClick={() => fileInput.current?.click()}>
+            <button className="btn btn-tint" disabled={!canRestore} onClick={() => fileInput.current?.click()}>
               Choose a journal file…
             </button>
             <input

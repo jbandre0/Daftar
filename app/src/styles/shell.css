@@ -1,51 +1,54 @@
 .shell { min-height: 100vh; min-height: 100dvh; }
+
+/* Phone: a floating bar, with the Write diamond rising out of it */
 .nav {
   position: fixed; z-index: 10; display: flex;
-  background: var(--desk-raised); border-color: var(--desk-line); border-style: solid; border-width: 0;
+  inset-inline: var(--sp-3); inset-block-end: calc(var(--sp-3) + env(safe-area-inset-bottom));
+  height: var(--bar-h); padding-inline: var(--sp-2);
+  justify-content: space-around; align-items: center;
+  background: var(--nav-bg); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  border: 1px solid var(--card-edge); border-radius: 30px; box-shadow: var(--card-shadow);
 }
 .nav a, .nav button.account {
-  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  min-width: var(--touch); min-height: var(--touch); color: var(--ash-soft);
-  text-decoration: none; font-size: var(--fs-13); background: none; border: 0; cursor: pointer;
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-width: var(--touch); min-height: var(--touch); padding-block-end: 8px; color: var(--ash-soft);
+  text-decoration: none; font-size: 0.75rem; letter-spacing: 0.02em; background: none; border: 0; cursor: pointer; border-radius: var(--r-ui);
 }
 .nav a:hover, .nav a[aria-current='page'] { color: var(--ash); }
+/* the current page: a small diamond of flame */
 .nav a[aria-current='page']::after {
-  content: ''; position: absolute; width: 18px; height: 2px; border-radius: 2px; background: var(--flame);
-  inset-block-end: 4px;
+  content: ''; position: absolute; inset-block-end: 0; inline-size: 7px; block-size: 7px; background: var(--flame);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
 }
-.nav a.write { color: var(--on-flame); }
-.nav a.write .write-disc {
-  display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%;
-  background: var(--flame); color: var(--on-flame); box-shadow: 0 0 24px var(--flame-glow);
-}
+.nav a.write { margin-block-start: -26px; padding: 0; gap: 2px; color: var(--ash-soft); }
 .nav a.write[aria-current='page']::after { display: none; }
-.nav a.write span.lbl { color: var(--ash-soft); }
-.nav .account-initial {
-  display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
-  border: 1px solid var(--desk-line); color: var(--ash); font-weight: 600;
+.write-diamond {
+  display: grid; place-items: center; inline-size: 62px; block-size: 62px; color: var(--on-flame);
+  background: var(--flame); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  transition: transform var(--t-fast) var(--ease);
 }
-.main { padding-block-end: calc(var(--bar-h) + env(safe-area-inset-bottom)); }
-
-/* Phone: bottom bar */
-.nav {
-  inset-inline: 0; inset-block-end: 0; height: calc(var(--bar-h) + env(safe-area-inset-bottom));
-  padding-block-end: env(safe-area-inset-bottom);
-  justify-content: space-around; align-items: center; border-block-start-width: 1px;
-}
+.nav a.write:hover .write-diamond { transform: scale(1.05); }
+.write-glow { filter: drop-shadow(0 6px 14px rgba(240, 167, 67, 0.35)); }
+.nav .lbl { display: block; }
 .nav .account-wrap, .nav .rail-spacer { display: none; }
-.nav a.write { margin-block-start: -18px; }
+.account-initial {
+  display: grid; place-items: center; inline-size: 36px; block-size: 36px;
+  background: var(--tint-strong); color: var(--ash); font-weight: 600;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.main { padding-block-end: calc(var(--bar-h) + var(--sp-8) + env(safe-area-inset-bottom)); }
 
-/* Desktop: slim left rail */
+/* Desktop: a floating rail */
 @media (min-width: 900px) {
   .nav {
-    inset-inline: auto; inset-inline-start: 0; inset-block: 0; width: var(--rail-w); height: auto;
-    flex-direction: column; justify-content: flex-start; gap: var(--sp-3); padding: var(--sp-5) 0;
-    border-block-start-width: 0; border-inline-end-width: 1px;
+    inset-inline: auto; inset-inline-start: var(--sp-4); inset-block: var(--sp-4); inline-size: var(--rail-w); block-size: auto;
+    flex-direction: column; justify-content: flex-start; gap: var(--sp-2); padding: var(--sp-5) var(--sp-2);
+    border-radius: 36px;
   }
-  .nav a { width: 100%; min-height: 56px; }
-  .nav a.write { margin-block-start: 0; }
-  .nav a[aria-current='page']::after { inset-block-end: auto; inset-inline-start: 0; width: 2px; height: 24px; }
+  .nav a { inline-size: 100%; min-height: 60px; padding-block-end: 0; }
+  .nav a.write { margin-block-start: 0; margin-block: var(--sp-3); }
+  .nav a[aria-current='page']::after { inset-block-end: auto; inset-inline-start: 2px; }
   .nav .rail-spacer { display: block; flex: 1; }
   .nav .account-wrap { display: flex; justify-content: center; }
-  .main { padding-inline-start: var(--rail-w); padding-block-end: 0; }
+  .main { padding-inline-start: calc(var(--rail-w) + var(--sp-6)); padding-block-end: var(--sp-6); }
 }

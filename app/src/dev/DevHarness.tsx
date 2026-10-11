@@ -12,6 +12,7 @@ import { syncDeps } from '../lib/syncDeps'
 import { OfflineError, type EntryContent, type EntryRow, type SaveResult } from '../lib/entries'
 import { sameContent, type SyncDeps } from '../lib/sync'
 import { Write } from '../screens/Write'
+import { Shell } from '../components/Shell'
 import { Chapters, ChapterDetail } from '../screens/Chapters'
 import { Settings } from '../screens/Settings'
 import { Vault } from '../screens/Vault'
@@ -132,12 +133,14 @@ export default function DevHarness() {
         <OrganizeCtx.Provider value={fakeOrganize}>
           <Bar />
           <Routes>
-            <Route path="write/:id" element={<Write />} />
-            <Route path="chapters" element={<Chapters />} />
-            <Route path="chapters/:id" element={<ChapterDetail />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="vault" element={<Vault />} />
-            <Route path="desk" element={<Desk />} />
+            <Route element={<Shell />}>
+              <Route path="write/:id" element={<Write />} />
+              <Route path="chapters" element={<Chapters />} />
+              <Route path="chapters/:id" element={<ChapterDetail />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="vault" element={<Vault />} />
+              <Route path="desk" element={<Desk />} />
+            </Route>
           </Routes>
         </OrganizeCtx.Provider>
       </SyncDepsContext.Provider>

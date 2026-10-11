@@ -7,17 +7,17 @@ body {
   color: var(--ash);
   font-family: var(--font-ui);
   font-size: var(--fs-15);
-  line-height: 1.4;
+  line-height: 1.45;
   background-color: var(--desk);
   background-image:
-    radial-gradient(ellipse 70% 55% at 18% 12%, var(--flame-glow), transparent 70%), /* lamp */
-    radial-gradient(ellipse 120% 90% at 50% 50%, transparent 55%, var(--vignette)), /* vignette */
-    repeating-linear-gradient(178deg, rgba(255, 220, 180, 0.018) 0 2px, transparent 2px 9px), /* wood grain */
+    radial-gradient(ellipse 75% 55% at 16% -4%, rgba(214, 140, 60, 0.3), transparent 70%), /* lamp, top-left */
+    radial-gradient(ellipse 120% 90% at 50% 50%, transparent 50%, rgba(0, 0, 0, 0.5)), /* vignette */
     url('/grain.svg'); /* fine noise */
   background-attachment: fixed;
   font-variant-numeric: tabular-nums;
 }
-#root { min-height: 100vh; min-height: 100dvh; }
+:root[data-theme='daylight'] body { background-image: none; }
+#root { min-height: 100vh; min-height: 100dvh; position: relative; }
 
 h1, h2, h3 { margin: 0; font-weight: 400; }
 p { margin: 0; }
@@ -26,7 +26,7 @@ button { font: inherit; color: inherit; }
 img, svg { display: block; max-width: 100%; }
 
 :focus { outline: none; }
-:focus-visible { outline: 2px solid var(--flame); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--flame); outline-offset: 3px; }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
@@ -36,6 +36,18 @@ img, svg { display: block; max-width: 100%; }
 /* RTL: direction comes from content, never from the UI. */
 input, textarea { unicode-bidi: plaintext; }
 :dir(rtl) { line-height: 1.9; }
+
+/* The parchment: a real surface behind the glass. Always on the writing screens; everywhere in Daylight. */
+.parchment {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none; display: none;
+  background: #d9c398 url('/img/parchment-portrait.webp') center / cover no-repeat;
+}
+.parchment::after { content: ''; position: absolute; inset: 0; background: var(--parchment-veil); }
+@media (orientation: landscape) {
+  .parchment { background-image: url('/img/parchment-landscape.webp'); }
+}
+:root[data-theme='daylight'] .parchment,
+.shell[data-surface='paper'] .parchment { display: block; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; transform: none !important; }

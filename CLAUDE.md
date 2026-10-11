@@ -14,11 +14,16 @@ App lives in `app/`: Vite + React + TypeScript, vite-plugin-pwa, react-router, P
 - All colours/spacing/radii come from `app/src/styles/tokens.css`. No raw hex in components. No #FFF/#000.
 - CSS logical properties only (margin-inline-start, inset-inline, text-align: start). No left/right in layout.
 - UI stays LTR; content direction is `dir="auto"` per paragraph/input.
-- No emoji, gradients on buttons, glassmorphism, toasts for save status, or looping animation. Transitions under 200 ms; honour prefers-reduced-motion.
+- Design language ("Heritage lamplight", set by the user from reference images): dark chocolate desk + amber (Lamplight), parchment everywhere (Daylight); the Write/Read screens always sit on the parchment image behind a frosted-glass panel. Rounded cards (24px) and panel (28px). **Buttons and pills are lozenges (pointed ends), the Write action and current-page marker are diamonds** (shape drawn on `::before` with `clip-path` so focus rings still work; use `.btn`, `.btn-primary`, `.btn-tint`, `.btn-quiet`, `.pill`). Icons: Phosphor Light 20px.
+- Type: Windsong (`--font-script`) for display moments only (screen titles, entry date); Newsreader (`--font-serif`) for book text; Figtree (`--font-ui`); Noto Naskh / IBM Plex Sans Arabic for Arabic. Windsong has no Arabic, and is hairline-thin: never use it for long body text by default (Settings has an opt-in "Handwriting" style, `html[data-write=hand]`).
+- Text that sits directly on the parchment (no card) must use the strong ink in Daylight (see the rule at the end of components.css).
+- No emoji, toasts for save status, or looping animation. Transitions under 200 ms; honour prefers-reduced-motion.
 - Copy follows the spec voice table (p.20-21).
-- Run `node app/scripts/contrast.mjs` after touching colour tokens (must report 0 FAIL).
+- Run `node app/scripts/contrast.mjs` after touching colour tokens, glass opacity or the parchment (must report 0 FAIL). It composites the glass over the real parchment pixels (darkest 1%).
+- Rebuild parchment assets with `node app/scripts/parchment.mjs <source image>` (source: public-domain "parchment paper background", publicdomainpictures.net image 802240, supplied by the user).
 
 ## Deviations from spec
+- **Design pass (user decision, overrides spec §8):** parchment photo background on writing screens (spec said no photographs), frosted glass panel (spec: no glassmorphism), rounded corners on paper (spec: crisp), lozenge/diamond buttons (spec: 8px radius / pills), Windsong + Newsreader + Figtree (spec: Literata + Source Sans 3). Tokens in the spec's table were replaced; WCAG AA still holds.
 - Daylight tokens darkened to pass AA: --flame #8F5311 (spec #A8641C), --ash-soft #6A5D4B (spec #786A57), --olive #56613A (spec #5E6A40). Added --on-flame (button text) because ink-on-flame fails AA in Daylight.
 - Spec gaps to resolve in phase 1: `can_edit()` is referenced but never defined (trial + 48h grace, or unlocked).
 
@@ -61,6 +66,7 @@ App lives in `app/`: Vite + React + TypeScript, vite-plugin-pwa, react-router, P
 - Not yet: pruning entry_versions older than 90 days (needs a scheduled job, phase 10); .zip with media (phase 6).
 
 ## Status
+Design pass complete (Heritage lamplight): fonts, tokens, parchment + glass, lozenge/diamond controls, floating nav, Desk hero, Handwriting option, contrast verified on real pixels. Layout verified at 375 px and 1280 px in both themes; the brass die, wax seal and calendar will follow this language when built.
 Phase 4 complete: migration 0005, Vault screen (export, restore preview → merge → report download, storage meter), Desk backup line + 30-day nudge. 107 DB checks, 52 client tests (incl. 21 Vault integration tests).
 Phase 3 complete: migration 0004, tracks/tags/chapters UI (Settings cards, Chapters + chapter detail, track/language pills and tag bar in the entry header), Spiritual template, 102 DB checks, 27 client tests. Not yet exercised against the real Supabase from the browser (needs a signed-in session): create/rename/hide writes.
 Phase 2 complete: Tiptap editor (per-block dir=auto via decorations; JSON stays clean), `save_entry()` (migration 0003), sync engine + 19 tests, Write screen (/write = today's entry, /write/new, /write/:id), Desk with last 5 entries, offline account cache.

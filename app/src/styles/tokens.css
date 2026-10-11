@@ -1,51 +1,90 @@
-/* Lamplight (dark, default) and Daylight (light). Every colour in the app comes from here. */
+/* Heritage lamplight. Lamplight (dark chocolate, default) and Daylight (parchment all the way through).
+ * Every colour in the app comes from here. */
 :root,
 :root[data-theme='lamplight'] {
-  --desk: #17110c;
-  --desk-raised: #221912;
-  --desk-line: #3a2b1f;
-  --page: #e4d3b0;
-  --page-line: #cbb68f;
-  --ink: #2a1f16;
-  --ink-soft: #6b5640;
-  --ash: #dccbb0;
-  --ash-soft: #a38f74;
-  --flame: #e2a24c;
-  --on-flame: #2a1f16;
-  --flame-glow: rgba(240, 168, 80, 0.16);
-  --olive: #8a9663;
+  --desk: #1f150f;
+  --desk-raised: #2e2019;
+  --desk-line: #4a3629;
+  --ash: #f1e6cf;
+  --ash-soft: #bba586;
+  --flame: #f0a743;
+  --on-flame: #2a1a0c;
+  --flame-glow: rgba(240, 167, 67, 0.2);
+  --flame-text: #f0a743; /* accent as text on cards */
+  --olive: #a9b37e;
   --seal: #8c2f22;
-  --on-seal: #e4d3b0;
-  --vignette: rgba(0, 0, 0, 0.45);
-  --page-shadow: 0 1px 0 rgba(0, 0, 0, 0.25), 0 24px 48px -16px rgba(0, 0, 0, 0.6);
-  --page-wash: rgba(255, 224, 170, 0.1);
+  --on-seal: #f1e6cf;
+
+  /* Ink on the glass writing panel */
+  --ink: #2a1f16;
+  --ink-soft: #54422f;
+  --page-line: rgba(42, 31, 22, 0.2);
+
+  /* Glass: the panel the words sit in, over the parchment */
+  --glass: rgba(247, 238, 218, 0.72);
+  --glass-solid: rgba(247, 238, 218, 0.94);
+  --glass-edge: rgba(255, 250, 238, 0.6);
+  --glass-blur: blur(16px) saturate(1.05);
+  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 30px 60px -24px rgba(10, 4, 0, 0.7);
+
+  /* Cards on the desk */
+  --card-bg: var(--desk-raised);
+  --card-edge: rgba(240, 200, 140, 0.1);
+  --card-blur: none;
+  --card-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.7);
+
+  /* Tint: quiet filled shapes (secondary buttons, pills) */
+  --tint: rgba(241, 230, 207, 0.09);
+  --tint-strong: rgba(241, 230, 207, 0.16);
+  --field-bg: rgba(0, 0, 0, 0.24);
+
+  --parchment-veil: radial-gradient(ellipse 85% 70% at 20% 6%, rgba(255, 205, 130, 0) 0%, rgba(24, 12, 4, 0.62) 100%);
+  --nav-bg: rgba(38, 26, 19, 0.82);
   --scrim: rgba(23, 17, 12, 0.7);
 }
 
 :root[data-theme='daylight'] {
-  --desk: #e9dfcb;
-  --desk-raised: #f1e8d6;
-  --desk-line: #d6c7ab;
-  --page: #fbf6ea;
-  --page-line: #e7dcc4;
-  --ink: #2b241c;
-  --ink-soft: #6e604e;
-  --ash: #3b3127;
-  --ash-soft: #6a5d4b; /* spec #786A57 fails AA (3.97) */
-  --flame: #8f5311; /* spec #A8641C fails AA as text (3.53) */
+  --desk: #dcc79d; /* only seen if the parchment is slow to load */
+  --desk-raised: rgba(251, 246, 234, 0.62);
+  --desk-line: rgba(70, 48, 20, 0.22);
+  --ash: #2e2216;
+  --ash-soft: #5a4a36;
+  --flame: #8f5311;
   --on-flame: #fbf6ea;
   --flame-glow: rgba(255, 214, 150, 0.35);
-  --olive: #56613a; /* spec #5E6A40 gave 4.40 */
+  --flame-text: #6b3a08;
+  --olive: #56613a;
   --seal: #8c2f22;
   --on-seal: #fbf6ea;
-  --vignette: rgba(0, 0, 0, 0.12);
-  --page-shadow: 0 1px 0 rgba(60, 40, 10, 0.15), 0 18px 36px -16px rgba(80, 55, 20, 0.35);
-  --page-wash: rgba(255, 236, 190, 0.35);
+
+  --ink: #2b241c;
+  --ink-soft: #54422f;
+  --page-line: rgba(43, 36, 28, 0.2);
+
+  --glass: rgba(252, 247, 236, 0.66);
+  --glass-solid: rgba(252, 247, 236, 0.95);
+  --glass-edge: rgba(255, 255, 255, 0.7);
+  --glass-blur: blur(16px) saturate(1.05);
+  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 28px 50px -26px rgba(80, 50, 10, 0.55);
+
+  --card-bg: var(--glass);
+  --card-edge: var(--glass-edge);
+  --card-blur: var(--glass-blur);
+  --card-shadow: 0 20px 40px -26px rgba(80, 50, 10, 0.5);
+
+  --tint: rgba(43, 36, 28, 0.08);
+  --tint-strong: rgba(43, 36, 28, 0.15);
+  --field-bg: rgba(255, 255, 255, 0.45);
+
+  /* A cream mist toward the edges keeps the parchment light enough for text directly on it */
+  --parchment-veil: radial-gradient(ellipse 85% 70% at 30% 10%, rgba(250, 238, 210, 0) 0%, rgba(250, 238, 210, 0.4) 100%);
+  --nav-bg: rgba(252, 247, 236, 0.8);
   --scrim: rgba(233, 223, 203, 0.75);
 }
 
 :root {
-  /* Type */
+  /* Type: Windsong for display moments, Newsreader for the book, Figtree for the interface */
+  --font-script: 'Daftar Script', 'Daftar Naskh', 'Snell Roundhand', cursive;
   --font-serif: 'Daftar Serif', 'Daftar Naskh', Georgia, serif;
   --font-ui: 'Daftar Sans', 'Daftar Plex Arabic', system-ui, sans-serif;
   --fs-13: 0.8125rem;
@@ -56,7 +95,8 @@
   --fs-28: 1.75rem;
   --fs-36: 2.25rem;
   --fs-body: 1.125rem; /* 18px phone */
-  --fs-display: var(--fs-28);
+  --fs-display: 3rem; /* Windsong needs size: it is hairline-thin */
+  --fs-display-sm: 2.25rem;
 
   /* Spacing (4px base) */
   --sp-1: 4px;
@@ -68,14 +108,15 @@
   --sp-7: 48px;
   --sp-8: 64px;
 
-  /* Shape */
-  --r-paper: 2px;
-  --r-ui: 8px;
-  --r-pill: 999px;
+  /* Shape. Rounded surfaces; lozenge (pointed-end) buttons and pills; diamonds for the signature actions. */
+  --r-card: 24px;
+  --r-panel: 28px;
+  --r-ui: 14px;
+  --pt: 14px; /* how far a lozenge's points reach in */
   --touch: 44px;
-  --page-pad: 20px;
-  --rail-w: 76px;
-  --bar-h: 64px;
+  --page-pad: 22px;
+  --rail-w: 84px;
+  --bar-h: 72px;
 
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --t-fast: 150ms;
@@ -85,7 +126,8 @@
 @media (min-width: 900px) {
   :root {
     --fs-body: 1.1875rem; /* 19px desktop */
-    --fs-display: var(--fs-36);
-    --page-pad: 48px;
+    --fs-display: 4rem;
+    --fs-display-sm: 2.75rem;
+    --page-pad: 52px;
   }
 }

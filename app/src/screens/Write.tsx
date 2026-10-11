@@ -153,13 +153,13 @@ export function Write() {
             onBlur={onBlur}
           />
         )}
+        <div className="write-foot">
+          <span>{c.word_count} {c.word_count === 1 ? 'word' : 'words'}</span>
+          <Link className="btn btn-quiet" to="/write/new">
+            New entry
+          </Link>
+        </div>
       </article>
-      <div className="write-foot">
-        <span className="meta">{c.word_count} {c.word_count === 1 ? 'word' : 'words'}</span>
-        <Link className="btn btn-quiet" to="/write/new">
-          New entry
-        </Link>
-      </div>
     </div>
   )
 }

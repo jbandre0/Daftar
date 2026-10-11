@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { EntryList } from '../components/EntryList'
 import { localDate, recentEntries, type EntrySummary } from '../lib/entries'
 import { syncDeps } from '../lib/syncDeps'
 import { dismissNudge, shouldNudge, sinceText } from '../lib/vaultRemote'
@@ -10,22 +11,15 @@ function greeting(d = new Date()) {
   return h < 5 ? 'Still up' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
 }
 
-function shortDate(iso: string) {
-  const [y, m, d] = iso.split('-').map(Number)
-  return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(new Date(y, m - 1, d))
-}
-
-function snippet(e: EntrySummary) {
-  const t = e.body_text.replace(/\s+/g, ' ').trim()
-  return t.length > 90 ? t.slice(0, 90).trimEnd() + '…' : t
-}
+const todayLong = () =>
+  new Intl.DateTimeFormat('en', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
 
 export function Desk() {
   const { session, profile } = useAuth()
-  const [dismissed, setDismissed] = useState(false)
-  const nudge = !dismissed && shouldNudge(profile?.last_export_at ?? null, profile?.created_at ?? null)
   const userId = session!.user.id
   const [entries, setEntries] = useState<EntrySummary[] | null>(null)
+  const [dismissed, setDismissed] = useState(false)
+  const nudge = !dismissed && shouldNudge(profile?.last_export_at ?? null, profile?.created_at ?? null)
 
   useEffect(() => {
     let cancelled = false
@@ -68,15 +62,20 @@ export function Desk() {
         {greeting()}
         {name}
       </h1>
-      <p className="screen-sub">{entries && entries.length === 0 ? "The page is blank. That's allowed." : ' '}</p>
 
-      <div className="row" style={{ marginBlockEnd: 'var(--sp-6)' }}>
-        <Link className="btn btn-primary" to="/write">
-          {hasToday ? 'Keep going' : 'Write today'}
-        </Link>
-        <Link className="btn btn-quiet" to="/chapters">
-          Chapters
-        </Link>
+      <div className="card hero">
+        <p className="hero-date">{todayLong()}</p>
+        <p style={{ fontSize: 'var(--fs-19)', fontFamily: 'var(--font-serif)' }}>
+          {entries && entries.length === 0 ? "The page is blank. That's allowed." : hasToday ? "Today's page is open." : 'A fresh page, whenever you are.'}
+        </p>
+        <div className="row">
+          <Link className="btn btn-primary" to="/write">
+            {hasToday ? 'Keep going' : 'Write today'}
+          </Link>
+          <Link className="btn btn-tint" to="/chapters">
+            Chapters
+          </Link>
+        </div>
       </div>
 
       {entries && entries.length > 0 && (
@@ -84,44 +83,26 @@ export function Desk() {
           <h2 id="recent-h" className="section-label">
             Recently
           </h2>
-          <ul className="entry-list">
-            {entries.map((e) => (
-              <li key={e.id}>
-                <Link to={`/write/${e.id}`}>
-                  <span className="entry-date">{shortDate(e.entry_date)}</span>
-                  <span className="entry-main">
-                    <span className="entry-title" dir="auto">
-                      {e.title || snippet(e) || 'Untitled'}
-                    </span>
-                    {e.title && (
-                      <span className="entry-snippet" dir="auto">
-                        {snippet(e)}
-                      </span>
-                    )}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <EntryList entries={entries} />
         </section>
       )}
 
       {nudge ? (
-          <p className="nudge">
-            <span>Last backup: {sinceText(profile?.last_export_at ?? null)}. A fresh copy takes one tap.</span>
-            <Link className="btn btn-quiet" to="/vault">
-              Export
-            </Link>
-            <button
-              className="btn btn-quiet"
-              onClick={() => {
-                dismissNudge()
-                setDismissed(true)
-              }}
-            >
-              Not now
-            </button>
-          </p>
+        <p className="nudge">
+          <span>Last backup: {sinceText(profile?.last_export_at ?? null)}. A fresh copy takes one tap.</span>
+          <Link className="btn btn-tint" to="/vault">
+            Export
+          </Link>
+          <button
+            className="btn btn-quiet"
+            onClick={() => {
+              dismissNudge()
+              setDismissed(true)
+            }}
+          >
+            Not now
+          </button>
+        </p>
       ) : (
         <p className="quiet-line">Last backup: {sinceText(profile?.last_export_at ?? null)}</p>
       )}
