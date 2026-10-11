@@ -97,7 +97,8 @@
 /* Editor */
 .toolbar {
   position: sticky; inset-block-start: var(--sp-3); z-index: 2; display: flex; flex-wrap: wrap; gap: var(--sp-1);
-  margin-block: 0 var(--sp-4); padding: var(--sp-1); background: var(--glass-solid); border: 1px solid var(--glass-edge); border-radius: 20px;
+  margin-block: 0 var(--sp-4); padding: var(--sp-1); background: rgba(252, 246, 232, 0.55); border: 1px solid var(--glass-edge); border-radius: 20px;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); /* text scrolling under it blurs away */
 }
 .toolbar button {
   display: grid; place-items: center; inline-size: var(--touch); block-size: var(--touch);

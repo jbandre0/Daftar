@@ -48,6 +48,11 @@ input, textarea { unicode-bidi: plaintext; }
 }
 :root[data-theme='daylight'] .parchment,
 .shell[data-surface='paper'] .parchment { display: block; }
+/* Lamplight, everywhere else: the same paper, faintly, through the dark desk (no edge shading here: the
+   desk has its own vignette). Text on the desk is checked against this in scripts/contrast.mjs. */
+.shell[data-surface='desk'] .parchment { display: block; opacity: 0.16; }
+:root:not([data-theme='daylight']) .shell[data-surface='desk'] .parchment::after { display: none; }
+:root[data-theme='daylight'] .shell[data-surface='desk'] .parchment { opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; transform: none !important; }

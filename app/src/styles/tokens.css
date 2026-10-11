@@ -17,17 +17,18 @@
 
   /* Ink on the glass writing panel */
   --ink: #2a1f16;
-  --ink-soft: #54422f;
+  --ink-soft: #443426;
   --page-line: rgba(42, 31, 22, 0.2);
 
   /* Glass: the panel the words sit in, over the parchment */
-  --glass: rgba(247, 238, 218, 0.72);
+  /* The writing panel is clear enough that the parchment's stains and mottling show under your words */
+  --glass: rgba(247, 238, 218, 0.58);
   --glass-solid: rgba(247, 238, 218, 0.94);
   --glass-edge: rgba(255, 250, 238, 0.6);
-  --glass-blur: blur(16px) saturate(1.05);
+  --glass-blur: blur(3px) saturate(1.05);
   --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 30px 60px -24px rgba(10, 4, 0, 0.7);
   /* The paper of a page seen from behind while it turns (opaque: what the glass looks like over the parchment) */
-  --leaf-paper: #e7d9bc;
+  --leaf-paper: #e2d1b0;
 
   /* Cards on the desk */
   --card-bg: var(--desk-raised);
@@ -63,16 +64,17 @@
   --ink-soft: #54422f;
   --page-line: rgba(43, 36, 28, 0.2);
 
-  --glass: rgba(252, 247, 236, 0.66);
+  --glass: rgba(252, 247, 236, 0.45);
   --glass-solid: rgba(252, 247, 236, 0.95);
   --glass-edge: rgba(255, 255, 255, 0.7);
-  --glass-blur: blur(16px) saturate(1.05);
+  --glass-blur: blur(3px) saturate(1.05);
   --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 28px 50px -26px rgba(80, 50, 10, 0.55);
-  --leaf-paper: #f0e4cb;
+  --leaf-paper: #ebdcbd;
 
-  --card-bg: var(--glass);
+  /* cards stay frosted: lists and forms read better on a calmer surface than the writing page */
+  --card-bg: rgba(252, 247, 236, 0.66);
   --card-edge: var(--glass-edge);
-  --card-blur: var(--glass-blur);
+  --card-blur: blur(16px) saturate(1.05);
   --card-shadow: 0 20px 40px -26px rgba(80, 50, 10, 0.5);
 
   --tint: rgba(43, 36, 28, 0.08);

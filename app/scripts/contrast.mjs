@@ -13,13 +13,13 @@ const over = (fg, a, bg) => fg.map((v, i) => v * a + bg[i] * (1 - a))
 const themes = {
   lamplight: {
     desk: '#1F150F', raised: '#2E2019', ash: '#F1E6CF', ashSoft: '#BBA586', flame: '#F0A743', onFlame: '#2A1A0C',
-    olive: '#B9A77A', onSeal: '#F1E6CF', seal: '#8C2F22', ink: '#2A1F16', inkSoft: '#54422F', flameText: '#F0A743',
-    glass: [247, 238, 218, 0.72], veil: [24, 12, 4, 0.62], glassIsCard: false,
+    olive: '#B9A77A', onSeal: '#F1E6CF', seal: '#8C2F22', ink: '#2A1F16', inkSoft: '#443426', flameText: '#F0A743',
+    glass: [247, 238, 218, 0.58], veil: [24, 12, 4, 0.62], glassIsCard: false,
   },
   daylight: {
     desk: '#DCC79D', raised: null, ash: '#2E2216', ashSoft: '#5A4A36', flame: '#8F5311', onFlame: '#FBF6EA',
     olive: '#56613A', onSeal: '#FBF6EA', seal: '#8C2F22', ink: '#2B241C', inkSoft: '#54422F', flameText: '#6B3A08',
-    glass: [252, 247, 236, 0.66], veil: [250, 238, 210, 0.4], glassIsCard: true,
+    glass: [252, 247, 236, 0.45], cardGlass: [252, 247, 236, 0.66], veil: [250, 238, 210, 0.4], glassIsCard: true,
   },
 }
 
@@ -53,13 +53,23 @@ for (const [name, t] of Object.entries(themes)) {
     minInk = Math.min(minInk, cr(hex(t.ink), surface))
     minSoft = Math.min(minSoft, cr(hex(t.inkSoft), surface))
     if (t.glassIsCard) {
-      minAsh = Math.min(minAsh, cr(hex(t.ash), surface))
-      minAshSoft = Math.min(minAshSoft, cr(hex(t.ashSoft), surface))
-      minFlame = Math.min(minFlame, cr(hex(t.flameText), surface))
+      const [cr_, cg, cb, ca] = t.cardGlass
+      const card = over([cr_, cg, cb], ca, veiled)
+      minAsh = Math.min(minAsh, cr(hex(t.ash), card))
+      minAshSoft = Math.min(minAshSoft, cr(hex(t.ashSoft), card))
+      minFlame = Math.min(minFlame, cr(hex(t.flameText), card))
     }
   }
-  report(name, 'ink on glass (worst 1% of parchment)', minInk, 4.5)
-  report(name, 'ink-soft on glass (worst 1%)', minSoft, 4.5)
+  if (!t.glassIsCard) {
+    // the desk shows the parchment faintly (16%): light text is worst over the lightest paper
+    const lightest = pixels.slice(-Math.ceil(pixels.length * 0.01))
+    for (const [f, min] of [['ash', 4.5], ['ashSoft', 4.5], ['flameText', 4.5], ['olive', 3]]) {
+      const v = Math.min(...lightest.map((px) => cr(hex(t[f]), over(px, 0.16, hex(t.desk)))))
+      report(name, `${f} on desk with faint parchment (lightest 1%)`, v, min)
+    }
+  }
+  report(name, 'ink on writing glass (worst 1% of parchment)', minInk, 4.5)
+  report(name, 'ink-soft on writing glass (worst 1%)', minSoft, 4.5)
   if (t.glassIsCard) {
     report(name, 'ash on glass card (worst 1%)', minAsh, 4.5)
     report(name, 'ash-soft on glass card (worst 1%)', minAshSoft, 4.5)
