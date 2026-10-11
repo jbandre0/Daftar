@@ -18,6 +18,7 @@ Run each new file in `migrations/` once, in order, then re-run `tests/rls.test.s
 - `0004_organization.sql` (phase 3: Spiritual template, tags in save_entry)
 - `0005_vault.sql` (phase 4: export_journal, restore_meta, restore_batch, restore_remaps)
 - `0006_browse.sql` (phase 5: browse_entries search and filters, entry_dates)
+- `0007_photos.sql` (phase 6: register_media, the server-side 2 GB cap, photo list in the export)
 
 ## 3. Auth settings
 - **Authentication → URL Configuration**

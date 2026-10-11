@@ -19,6 +19,17 @@ export async function markExported(userId: string) {
   await supabase.from('profiles').update({ last_export_at: new Date().toISOString() }).eq('id', userId)
 }
 
+export function downloadBlob(name: string, blob: Blob) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
 export function downloadText(name: string, text: string, type = 'application/json') {
   const url = URL.createObjectURL(new Blob([text], { type: `${type};charset=utf-8` }))
   const a = document.createElement('a')

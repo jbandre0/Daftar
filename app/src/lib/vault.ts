@@ -39,10 +39,11 @@ export type FileChapter = {
   id: string; name: string; description: string; start_date: string; end_date: string | null; color_token: string; updated_at: string
 }
 export type FileLetter = { to: string | null; sealed: boolean; unlock_at: string | null } | null
+export type FileMedia = { id: string; mime: string; width: number; height: number; bytes: number; sha256: string; file: string; unsynced?: true }
 export type FileEntry = {
   id: string; entry_date: string; title: string | null; track_id: string | null; tag_ids: string[]; language: string
   body_text: string; body_rich: unknown; word_count: number; fields: Record<string, unknown>; letter: FileLetter
-  media: unknown[]; created_at: string; updated_at: string; unsynced?: true
+  media: FileMedia[]; created_at: string; updated_at: string; unsynced?: true
 }
 export type FileVersion = { id: string; entry_id: string; reason: string; created_at: string; snapshot: unknown }
 
@@ -117,6 +118,25 @@ export const serialize = (f: JournalFile) => JSON.stringify(f, null, 2) + '\n'
 
 // ---- parse and validate ------------------------------------------------------------------------------------
 
+const SHA = /^[0-9a-f]{64}$/
+function cleanMedia(raw: unknown, entryId: string, unreadable: Unreadable[]): FileMedia[] {
+  if (!Array.isArray(raw)) return []
+  const out: FileMedia[] = []
+  raw.forEach((m, i) => {
+    const ok = isObj(m) && isUuid(m.id) && typeof m.file === 'string' && m.file.length > 0 && typeof m.sha256 === 'string' && SHA.test(m.sha256) && typeof m.bytes === 'number' && m.bytes > 0
+    if (!ok) {
+      unreadable.push({ what: 'photo', index: i, label: entryId.slice(0, 8), reason: 'missing id, file or checksum' })
+      return
+    }
+    const mm = m as Record<string, unknown>
+    out.push({
+      id: mm.id as string, mime: typeof mm.mime === 'string' ? mm.mime : 'image/webp', width: Number(mm.width) || 0, height: Number(mm.height) || 0,
+      bytes: mm.bytes as number, sha256: mm.sha256 as string, file: mm.file as string,
+    })
+  })
+  return out
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 const isUuid = (v: unknown): v is string => typeof v === 'string' && UUID.test(v)
@@ -124,7 +144,7 @@ const isDate = (v: unknown): v is string => typeof v === 'string' && DATE.test(v
 const isTs = (v: unknown): v is string => typeof v === 'string' && !Number.isNaN(Date.parse(v))
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 
-export type Unreadable = { what: 'entry' | 'track' | 'tag' | 'chapter' | 'version'; index: number; label: string; reason: string }
+export type Unreadable = { what: 'entry' | 'track' | 'tag' | 'chapter' | 'version' | 'photo'; index: number; label: string; reason: string }
 
 export type ParseResult =
   | { ok: true; file: JournalFile; unreadable: Unreadable[]; duplicates: number }
@@ -242,7 +262,7 @@ export function parseJournal(text: string): ParseResult {
       word_count: typeof e.word_count === 'number' && e.word_count >= 0 ? Math.floor(e.word_count) : 0,
       fields: isObj(e.fields) ? e.fields : {},
       letter,
-      media: Array.isArray(e.media) ? e.media : [],
+      media: cleanMedia(e.media, String(e.id), unreadable),
       created_at: isTs(e.created_at) ? (e.created_at as string) : (updated as string),
       updated_at: updated as string,
     }
@@ -329,7 +349,7 @@ export async function runRestore(
   let versionsAdded = 0
   opts.onProgress?.(0, file.entries.length)
   for (let i = 0; i < file.entries.length; i += size) {
-    const batch = file.entries.slice(i, i + size).map(({ unsynced: _u, ...e }) => e)
+    const batch = file.entries.slice(i, i + size).map(({ unsynced: _u, media: _m, ...e }) => e)
     const versions = batch.flatMap((e) => versionsByEntry.get(e.id) ?? [])
     const r = (await rpc('restore_batch', {
       p: { entries: batch, versions },

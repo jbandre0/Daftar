@@ -167,6 +167,17 @@ select pg_temp.t('entry_dates: B does not see A''s dates', '^ok:1$', '00000000-0
 select pg_temp.t('browse: signed-out visitor cannot call it', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'anon', $q$select * from browse_entries()$q$);
 select pg_temp.t('entry_dates: signed-out visitor cannot call it', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'anon', $q$select entry_dates()$q$);
 
+-- ---- 5e. Photos (the storage-dependent checks live in the local test suite: Supabase blocks direct writes to storage tables)
+select pg_temp.t('photos: the cap is 2 GB', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where storage_cap_bytes() = 2147483648$q$);
+select pg_temp.t('photos: A can read own storage usage', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where storage_used_bytes() >= 0$q$);
+select pg_temp.t('photos: A cannot insert a media row directly', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into media (user_id, entry_id, storage_path, mime, bytes, sha256) values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000aaa1', 'x', 'image/webp', 1, repeat('a', 64))$q$);
+select pg_temp.t('photos: registering with no uploaded file is refused', '^err:P0002$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select register_media(gen_random_uuid(), '00000000-0000-0000-0000-00000000aaa1', 'image/webp', 1, 1, repeat('a', 64))$q$);
+select pg_temp.t('photos: B cannot register against A''s entry', '^err:P0002$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$select register_media(gen_random_uuid(), '00000000-0000-0000-0000-00000000aaa1', 'image/webp', 1, 1, repeat('a', 64))$q$);
+select pg_temp.t('photos: only WebP', '^err:22023$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select register_media(gen_random_uuid(), '00000000-0000-0000-0000-00000000aaa1', 'image/jpeg', 1, 1, repeat('a', 64))$q$);
+select pg_temp.t('photos: signed-out visitor cannot register', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'anon', $q$select register_media(gen_random_uuid(), '00000000-0000-0000-0000-00000000aaa1', 'image/webp', 1, 1, repeat('a', 64))$q$);
+select pg_temp.t('photos: clean-up helpers are not for signed-in users', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select * from media_orphans()$q$);
+select pg_temp.t('photos: A cannot read B''s storage usage', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select storage_used_bytes_for('00000000-0000-0000-0000-0000000000b2')$q$);
+
 -- ---- 6. Trial ended long ago (more than 48h): read-only ---------------------------------------------------
 update licenses set trial_ends_at = now() - interval '3 days' where user_id = '00000000-0000-0000-0000-0000000000a1';
 select pg_temp.t('expired: inserts fail',               '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entries (id, user_id, entry_date) values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000a1', '2026-10-03')$q$);

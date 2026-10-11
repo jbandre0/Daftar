@@ -44,7 +44,7 @@ function DaySpread({ date, entries, loading }: { date: string; entries: DayEntry
                 {tagNames.map((n) => <span key={n} className="tag-chip static" dir="auto">{n}</span>)}
               </div>
             )}
-            {e.body_text.trim() ? <RichText doc={e.body_rich} /> : <p className="meta">Nothing written here.</p>}
+            {e.body_text.trim() || JSON.stringify(e.body_rich).includes('"photo"') ? <RichText doc={e.body_rich} entryId={e.id} /> : <p className="meta">Nothing written here.</p>}
             <p className="spread-foot">
               <span>{e.word_count} {e.word_count === 1 ? 'word' : 'words'}{e.unsynced ? ' · on this device' : ''}</span>
               <Link className="btn btn-quiet" to={`/write/${e.id}`}>Open to edit</Link>

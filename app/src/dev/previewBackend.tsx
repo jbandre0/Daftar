@@ -16,15 +16,20 @@ import { matchesFilters, makeSnippet, PAGE_SIZE, type BrowseFilters, type Browse
 import type { Organize } from '../lib/organize'
 import type { AuthState } from '../auth'
 import { README, FORMAT, SCHEMA_VERSION, APP_VERSION } from '../lib/vault'
+import { createStore, get as idbGet, set as idbSet } from 'idb-keyval'
+import { PhotoRetry, PhotoRejected, photoPath, type PhotoBackend } from '../lib/photoQueue'
+import type { MediaApi, MediaRow } from '../lib/photoRuntime'
+import { sha256Hex } from '../lib/photos'
 
 const SERVER = 'daftar.preview.server'
 const OFFLINE = 'daftar.preview.offline'
 const FLAG = 'daftar.preview'
-const SEED_VERSION = '2'
+const SEED_VERSION = '3'
 const SEED_KEY = 'daftar.preview.seed'
 
 type Row = { content: EntryContent; revision: number; updated_at: string; created_at: string }
-type Db = { rows: Record<string, Row>; versions: { id: string; entry_id: string; content: unknown; at: string }[] }
+type SimMedia = { id: string; entry_id: string; path: string; bytes: number; sha256: string; width: number; height: number; created_at: string }
+type Db = { rows: Record<string, Row>; versions: { id: string; entry_id: string; content: unknown; at: string }[]; media?: SimMedia[] }
 
 const readDb = (): Db => JSON.parse(localStorage.getItem(SERVER) ?? '{"rows":{},"versions":[]}')
 const writeDb = (db: Db) => localStorage.setItem(SERVER, JSON.stringify(db))
@@ -171,6 +176,110 @@ const summary = (r: Row): EntrySummary => ({
 
 const allRows = () => Object.values(readDb().rows)
 
+// ---- photos: a simulated Storage bucket (IndexedDB) and media table ----------------------------------------------
+
+const blobs = createStore('daftar-preview', 'blobs')
+const urlFor = new Map<string, string>()
+
+const photoBackend: PhotoBackend & MediaApi = {
+  async upload(path, blob) {
+    await sleep(350)
+    if (isOffline()) throw new PhotoRetry('preview offline')
+    await idbSet(path, blob, blobs)
+  },
+  async register(a) {
+    await sleep(200)
+    if (isOffline()) throw new PhotoRetry('preview offline')
+    const db = readDb()
+    const entry = db.rows[a.entryId]
+    if (!entry) throw new PhotoRetry('entry_not_found') // the text hasn't been saved yet
+    const media = (db.media ??= [])
+    const same = media.find((m) => m.entry_id === a.entryId && m.sha256 === a.sha256)
+    if (same) return { id: same.id, duplicate: true, remapped: same.id !== a.id }
+    if (media.some((m) => m.id === a.id)) return { id: a.id, duplicate: true, remapped: false }
+    if (media.filter((m) => m.entry_id === a.entryId).length >= 12) throw new PhotoRejected('limit', 'photo_limit')
+    const path = photoPath('preview-user', a.entryId, a.id) // where the queue uploaded it, exactly as the real server expects
+    const blob = await idbGet<Blob>(path, blobs)
+    if (!blob) throw new PhotoRetry('upload_missing')
+    media.push({ id: a.id, entry_id: a.entryId, path, bytes: blob.size, sha256: a.sha256, width: a.width, height: a.height, created_at: new Date().toISOString() })
+    writeDb(db)
+    return { id: a.id, duplicate: false, remapped: false }
+  },
+  async listMedia(entryId) {
+    return (readDb().media ?? []).filter((m) => m.entry_id === entryId).map(toRow)
+  },
+  async listMediaMany(ids) {
+    return (readDb().media ?? []).filter((m) => ids.includes(m.entry_id)).map(toRow)
+  },
+  async signedUrls(paths) {
+    const out: Record<string, string> = {}
+    for (const p of paths) {
+      if (!urlFor.has(p)) {
+        const b = await idbGet<Blob>(p, blobs)
+        if (b) urlFor.set(p, URL.createObjectURL(b))
+      }
+      const u = urlFor.get(p)
+      if (u) out[p] = u
+    }
+    return out
+  },
+  async softDelete(id) {
+    const db = readDb()
+    db.media = (db.media ?? []).filter((m) => m.id !== id)
+    writeDb(db)
+  },
+}
+const toRow = (m: SimMedia): MediaRow => ({ id: m.id, entry_id: m.entry_id, storage_path: m.path, thumb_path: null, width: m.width, height: m.height, bytes: m.bytes, sha256: m.sha256 })
+
+/** Paint a small landscape (sky, sun, hills) so the sample journal has photos to show. */
+async function samplePhoto(hue: number): Promise<Blob> {
+  const W = 1600, H = 1067
+  const c = new OffscreenCanvas(W, H)
+  const g = c.getContext('2d')!
+  const sky = g.createLinearGradient(0, 0, 0, H)
+  sky.addColorStop(0, `hsl(${hue}, 55%, 62%)`)
+  sky.addColorStop(0.55, `hsl(${hue + 18}, 70%, 78%)`)
+  sky.addColorStop(1, `hsl(${hue + 30}, 80%, 86%)`)
+  g.fillStyle = sky
+  g.fillRect(0, 0, W, H)
+  g.fillStyle = 'rgba(255, 244, 214, 0.95)'
+  g.beginPath()
+  g.arc(W * 0.7, H * 0.42, 90, 0, Math.PI * 2)
+  g.fill()
+  const hills = [['#7b5b3a', 0.62], ['#5d4630', 0.72], ['#3b2c1f', 0.84]] as const
+  hills.forEach(([col, base], i) => {
+    g.fillStyle = col
+    g.beginPath()
+    g.moveTo(0, H)
+    for (let x = 0; x <= W; x += 20) g.lineTo(x, H * base + Math.sin(x / (170 - i * 30) + i * 2) * (46 - i * 8) + Math.sin(x / 61 + i) * 9)
+    g.lineTo(W, H)
+    g.fill()
+  })
+  return c.convertToBlob({ type: 'image/webp', quality: 0.8 })
+}
+
+async function seedPhotos() {
+  if (localStorage.getItem('daftar.preview.photos') === SEED_VERSION) return
+  const db = readDb()
+  const media: SimMedia[] = (db.media = [])
+  const put = async (entryId: string, n: number, hue: number) => {
+    const row = db.rows[entryId]
+    if (!row) return
+    const blob = await samplePhoto(hue)
+    const id = `00000000-0000-4000-8000-0000000c${String(n).padStart(4, '0')}`
+    const path = photoPath('preview-user', entryId, id)
+    await idbSet(path, blob, blobs)
+    media.push({ id, entry_id: entryId, path, bytes: blob.size, sha256: await sha256Hex(blob), width: 1600, height: 1067, created_at: row.created_at })
+    const doc = row.content.body_rich as { content: unknown[] }
+    doc.content.splice(1, 0, { type: 'photo', attrs: { mediaId: id, width: 1600, height: 1067 } })
+  }
+  await put('00000000-0000-4000-8000-000000000901', 1, 28)
+  await put('00000000-0000-4000-8000-000000000906', 2, 205)
+  await put('00000000-0000-4000-8000-000000000906', 3, 345)
+  writeDb(db)
+  localStorage.setItem('daftar.preview.photos', SEED_VERSION)
+}
+
 // ---- the badge -------------------------------------------------------------------------------------------------
 
 function Badge() {
@@ -191,6 +300,7 @@ function Badge() {
       <button
         onClick={() => {
           localStorage.removeItem(SERVER)
+          localStorage.removeItem('daftar.preview.photos')
           sessionStorage.removeItem(FLAG)
           location.href = '/?preview=1'
         }}
@@ -210,11 +320,14 @@ export async function maybeInstallPreview() {
   if (sessionStorage.getItem(FLAG) !== '1') return
 
   seed()
+  await seedPhotos()
   const auth: AuthState = {
     session: { user: { id: 'preview-user', email: 'you@example.com' } } as unknown as Session,
     profile: {
       id: 'preview-user', display_name: 'Justin', timezone: 'UTC', default_language: 'en',
-      last_export_at: new Date(Date.now() - 12 * 86_400_000).toISOString(), storage_bytes_used: 184_233_000,
+      last_export_at: new Date(Date.now() - 12 * 86_400_000).toISOString(),
+      // dev only: /?preview=1&used=2147400000 pretends the account is almost full (to see the cap message)
+      storage_bytes_used: Number(new URLSearchParams(location.search).get('used') ?? 184_233_000),
       created_at: new Date(Date.now() - 9 * 86_400_000).toISOString(),
     },
     license: {
@@ -231,6 +344,7 @@ export async function maybeInstallPreview() {
   Object.assign(syncDeps, { save, fetch: fetchEntry, isOnline: () => !isOffline() })
   Object.assign(preview, {
     active: true,
+    photos: photoBackend,
     auth,
     organize,
     Badge,
@@ -283,7 +397,8 @@ export async function maybeInstallPreview() {
         entries: Object.values(db.rows).map((r) => ({
           id: r.content.id, entry_date: r.content.entry_date, title: r.content.title, track_id: r.content.track_id ?? null,
           tag_ids: r.content.tag_ids ?? [], language: r.content.language, body_text: r.content.body_text, body_rich: r.content.body_rich,
-          word_count: r.content.word_count, fields: r.content.fields ?? {}, letter: null, media: [],
+          word_count: r.content.word_count, fields: r.content.fields ?? {}, letter: null,
+          media: (db.media ?? []).filter((m) => m.entry_id === r.content.id).map((m) => ({ id: m.id, mime: 'image/webp', width: m.width, height: m.height, bytes: m.bytes, sha256: m.sha256, file: `media/${r.content.id.slice(0, 8)}/${m.id}.webp` })),
           created_at: r.created_at, updated_at: r.updated_at,
         })),
         entry_versions: [],

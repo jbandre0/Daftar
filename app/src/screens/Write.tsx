@@ -11,6 +11,7 @@ import { useOrganize } from '../organize'
 import { STATUS_TEXT } from '../lib/sync'
 import { writeState } from '../lib/account'
 import { findTodaysEntry } from '../lib/today'
+import { photoQueue } from '../lib/photoRuntime'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -61,10 +62,17 @@ export function Write() {
   const { session, error } = useEntrySession(id, userId, blank, isNew)
   useSessionState(session)
 
+  // A photo can only be registered once its entry's text is on the server, so the moment a save lands, try again.
+  const saveStatus = session?.status
+  useEffect(() => {
+    if (saveStatus === 'saved' && photoQueue.pending(id).length > 0) photoQueue.retryNow()
+  }, [saveStatus, id])
+
   const state = writeState(license)
   // The server decides; this only avoids inviting typing that can't be saved.
   const editable = !!session && !session.unavailable && state !== 'readonly' && !(state === 'grace' && session.status === 'idle')
 
+  const [photoNotice, setPhotoNotice] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [titleVersion, setTitleVersion] = useState(-1)
   if (session && titleVersion !== session.remoteVersion) {
@@ -142,6 +150,7 @@ export function Write() {
             ? "This entry isn't on this device yet. Connect to open it."
             : trialLine ?? STATUS_TEXT[session.status]}
           {session.note && <span className="save-note"> {session.note}</span>}
+          {photoNotice && <span className="save-note photo-notice"> {photoNotice}</span>}
         </p>
         {!session.unavailable && (
           <Editor
@@ -151,6 +160,10 @@ export function Write() {
             editable={editable}
             onChange={onChange}
             onBlur={onBlur}
+            entryId={session.id}
+            userId={userId}
+            usedBytes={profile?.storage_bytes_used ?? 0}
+            onNotice={setPhotoNotice}
           />
         )}
         <div className="write-foot">

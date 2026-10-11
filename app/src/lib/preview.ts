@@ -4,6 +4,8 @@ import type { BrowseFilters, BrowseRow, DayEntry } from './browse'
 import type { EntrySummary } from './entries'
 import type { Organize } from './organize'
 import type { Rpc } from './vault'
+import type { PhotoBackend } from './photoQueue'
+import type { MediaApi } from './photoRuntime'
 
 /**
  * Dev-only preview mode (see src/dev/previewBackend.ts, loaded only when `import.meta.env.DEV`).
@@ -18,6 +20,7 @@ export const preview: {
   range?: (start: string, end: string | null) => Promise<EntrySummary[]>
   remoteToday?: (today: string) => Promise<{ id: string; updated_at: string } | null>
   rpc?: Rpc
+  photos?: PhotoBackend & MediaApi
   browse?: (f: BrowseFilters, offset: number) => Promise<{ rows: BrowseRow[]; total: number }>
   monthDays?: (start: string, end: string) => Promise<Record<string, number>>
   allDates?: () => Promise<string[]>
