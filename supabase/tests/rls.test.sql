@@ -117,12 +117,46 @@ select pg_temp.t('save: B cannot save into A''s entry', '^err:42501$', '00000000
 select pg_temp.check_('save: A''s entry untouched by B', (select body_text = 'merged' and revision = 4 from entries where id = '00000000-0000-0000-0000-00000000aaa5'));
 select pg_temp.t('save: signed-out visitor cannot call it', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'anon', $q$select save_entry('{"id":"00000000-0000-0000-0000-00000000aaa6"}', 0)$q$);
 
+-- ---- 5c. Organisation: templates, tags, chapters ---------------------------------------------------------
+select pg_temp.check_('Spiritual track points at the Spiritual template', (select default_template_id = '00000000-0000-4000-8000-0000000000e1' from tracks where user_id = '00000000-0000-0000-0000-0000000000a1' and slug = 'spiritual'));
+select pg_temp.check_('Letters and Dreams have no template', (select count(*) = 0 from tracks where user_id = '00000000-0000-0000-0000-0000000000a1' and slug in ('letters', 'dreams') and default_template_id is not null));
+select pg_temp.t('A can read the global template', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select * from templates where id = '00000000-0000-4000-8000-0000000000e1'$q$);
+select pg_temp.t('A cannot edit the global template', '^ok:0$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update templates set name = 'hacked' where id = '00000000-0000-4000-8000-0000000000e1'$q$);
+select pg_temp.t('A cannot create a global template', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into templates (user_id, name) values (null, 'mine')$q$);
+select pg_temp.t('A cannot read B''s template', '^ok:0$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select * from templates where id = '00000000-0000-0000-0000-00000000e0b2'$q$);
+
+select pg_temp.t('A creates a tag', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into tags (id, user_id, name) values ('00000000-0000-0000-0000-0000000007a1', '00000000-0000-0000-0000-0000000000a1', 'family')$q$);
+select pg_temp.t('tag names are unique ignoring case', '^err:23505$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into tags (user_id, name) values ('00000000-0000-0000-0000-0000000000a1', 'FAMILY')$q$);
+select pg_temp.t('A can rename a tag', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update tags set name = 'Family' where id = '00000000-0000-0000-0000-0000000007a1'$q$);
+select pg_temp.t('B cannot rename A''s tag', '^ok:0$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$update tags set name = 'x' where id = '00000000-0000-0000-0000-0000000007a1'$q$);
+select pg_temp.t('B cannot see A''s tag', '^ok:0$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$select * from tags where id = '00000000-0000-0000-0000-0000000007a1'$q$);
+
+select pg_temp.t('save_entry attaches own tag and skips B''s', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where save_entry('{"id":"00000000-0000-0000-0000-00000000aaa9","entry_date":"2026-09-15","body_text":"tagged","tag_ids":["00000000-0000-0000-0000-0000000007a1","00000000-0000-0000-0000-0000000007b2"]}', 0) @> '{"revision":1,"created":true}'$q$);
+select pg_temp.check_('only the caller''s tag is linked', (select array_agg(tag_id) = array['00000000-0000-0000-0000-0000000007a1'::uuid] from entry_tags where entry_id = '00000000-0000-0000-0000-00000000aaa9' and deleted_at is null));
+select pg_temp.t('identical retry with tags is a no-op', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where save_entry('{"id":"00000000-0000-0000-0000-00000000aaa9","tag_ids":["00000000-0000-0000-0000-0000000007a1"]}', 1) @> '{"revision":1}'$q$);
+select pg_temp.t('removing every tag is a change', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where save_entry('{"id":"00000000-0000-0000-0000-00000000aaa9","tag_ids":[]}', 1) @> '{"revision":2}'$q$);
+select pg_temp.check_('unlinked tag is soft-deleted, not removed', (select count(*) = 1 and bool_and(deleted_at is not null) from entry_tags where entry_id = '00000000-0000-0000-0000-00000000aaa9'));
+select pg_temp.t('re-adding the tag revives the same link', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where save_entry('{"id":"00000000-0000-0000-0000-00000000aaa9","tag_ids":["00000000-0000-0000-0000-0000000007a1"]}', 2) @> '{"revision":3}'$q$);
+select pg_temp.check_('one link row, active again', (select count(*) = 1 and bool_and(deleted_at is null) from entry_tags where entry_id = '00000000-0000-0000-0000-00000000aaa9'));
+select pg_temp.t('a save without tag_ids leaves tags alone', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where save_entry('{"id":"00000000-0000-0000-0000-00000000aaa9","title":"renamed"}', 3) @> '{"revision":4}'$q$);
+select pg_temp.check_('tags untouched by that save', (select count(*) = 1 from entry_tags where entry_id = '00000000-0000-0000-0000-00000000aaa9' and deleted_at is null));
+select pg_temp.t('an unknown tag id never fails the text save', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where save_entry('{"id":"00000000-0000-0000-0000-00000000aaa9","body_text":"still saves","tag_ids":["00000000-0000-0000-0000-0000000007a1","00000000-0000-0000-0000-00000000dead"]}', 4) @> '{"revision":5}'$q$);
+
+select pg_temp.t('A creates a chapter', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into chapters (id, user_id, name, start_date, end_date) values ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000a1', 'September', '2026-09-01', '2026-09-30')$q$);
+select pg_temp.t('A creates an ongoing chapter', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into chapters (id, user_id, name, start_date) values ('00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-0000000000a1', 'October on', '2026-10-01')$q$);
+select pg_temp.t('a chapter cannot end before it starts', '^err:23514$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into chapters (user_id, name, start_date, end_date) values ('00000000-0000-0000-0000-0000000000a1', 'backwards', '2026-10-02', '2026-10-01')$q$);
+select pg_temp.t('chapter shows the entries inside its dates', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select e.* from entries e join chapters c on e.entry_date >= c.start_date and (c.end_date is null or e.entry_date <= c.end_date) where c.id = '00000000-0000-0000-0000-0000000000c1' and e.deleted_at is null$q$);
+select pg_temp.t('ongoing chapter shows only A''s entries from its start', '^ok:4$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select e.* from entries e join chapters c on e.entry_date >= c.start_date and (c.end_date is null or e.entry_date <= c.end_date) where c.id = '00000000-0000-0000-0000-0000000000c2' and e.deleted_at is null$q$);
+select pg_temp.t('A can rename a chapter', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update chapters set name = 'Sept' where id = '00000000-0000-0000-0000-0000000000c1'$q$);
+select pg_temp.t('B cannot touch A''s chapter', '^ok:0$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$update chapters set name = 'x' where id = '00000000-0000-0000-0000-0000000000c1'$q$);
+select pg_temp.t('B cannot see A''s chapters', '^ok:0$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$select * from chapters$q$);
+
 -- ---- 6. Trial ended long ago (more than 48h): read-only ---------------------------------------------------
 update licenses set trial_ends_at = now() - interval '3 days' where user_id = '00000000-0000-0000-0000-0000000000a1';
 select pg_temp.t('expired: inserts fail',               '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entries (id, user_id, entry_date) values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000a1', '2026-10-03')$q$);
 select pg_temp.t('expired: edits fail',                 '^ok:0$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update entries set title = 'late' where id = '00000000-0000-0000-0000-00000000aaa1'$q$);
 select pg_temp.t('expired: new tags fail',              '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into tags (user_id, name) values ('00000000-0000-0000-0000-0000000000a1', 'late')$q$);
-select pg_temp.t('expired: reading still works',        '^ok:4$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select * from entries$q$);
+select pg_temp.t('expired: reading still works',        '^ok:5$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select * from entries$q$);
 select pg_temp.t('expired: save_entry edit refused',    '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select save_entry('{"id":"00000000-0000-0000-0000-00000000aaa5","body_text":"late"}', 4)$q$);
 select pg_temp.t('expired: save_entry new entry refused', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select save_entry('{"id":"00000000-0000-0000-0000-00000000aaa7","body_text":"late"}', 0)$q$);
 select pg_temp.t('expired: can_write() is false',       '^ok:0$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where can_write()$q$);

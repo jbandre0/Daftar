@@ -15,6 +15,7 @@ It creates two throw-away users, tries to break every rule, and deletes them aft
 Run each new file in `migrations/` once, in order, then re-run `tests/rls.test.sql`.
 - `0002_rls_hardening.sql` (phase 1 review)
 - `0003_save_entry.sql` (phase 2: the editor's save function)
+- `0004_organization.sql` (phase 3: Spiritual template, tags in save_entry)
 
 ## 3. Auth settings
 - **Authentication → URL Configuration**

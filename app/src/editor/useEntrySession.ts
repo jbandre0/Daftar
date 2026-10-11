@@ -68,6 +68,6 @@ export function useEntrySession(id: string, userId: string, blank: () => EntryCo
 export function useSessionState(session: EntrySession | null) {
   return useSyncExternalStore(
     (fn) => (session ? session.subscribe(fn) : () => {}),
-    () => (session ? `${session.status}|${session.note ?? ''}|${session.remoteVersion}|${session.unavailable}` : ''),
+    () => (session ? `${session.status}|${session.note ?? ''}|${session.remoteVersion}|${session.metaVersion}|${session.unavailable}` : ''),
   )
 }

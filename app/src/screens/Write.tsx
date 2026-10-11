@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { chaptersFor } from '../lib/organize'
 import { Editor } from '../editor/Editor'
 import { useEntrySession, useSessionState } from '../editor/useEntrySession'
-import { EMPTY_DOC, countWords, localDate, type EntryContent } from '../lib/entries'
+import { EMPTY_DOC, countWords, docToText, localDate, trackOf, type EntryContent } from '../lib/entries'
+import type { Track } from '../lib/organize'
+import { EntryMeta } from '../editor/EntryMeta'
+import { useOrganize } from '../organize'
 import { STATUS_TEXT } from '../lib/sync'
 import { writeState } from '../lib/account'
 import { findTodaysEntry } from '../lib/today'
@@ -44,12 +48,15 @@ export function Write() {
   const isNew = !!(location.state as { isNew?: boolean } | null)?.isNew
   const userId = auth!.user.id
   const lang = profile?.default_language ?? 'en'
+  const { tracks, templates, chapters } = useOrganize()
+  const defaultTrack = tracks[0]?.id ?? null
 
   const blank = useCallback(
     (): EntryContent => ({
       id, entry_date: localDate(), title: '', body_rich: EMPTY_DOC, body_text: '', language: lang, word_count: 0,
+      track_id: defaultTrack, fields: {}, tag_ids: [],
     }),
-    [id, lang],
+    [id, lang, defaultTrack],
   )
   const { session, error } = useEntrySession(id, userId, blank, isNew)
   useSessionState(session)
@@ -72,11 +79,29 @@ export function Write() {
   )
   const onBlur = useCallback(() => void session?.flush(), [session])
 
+  /** Switching track on a page that is still blank (or still just the old template) swaps in the new template. */
+  const onTrack = (t: Track) => {
+    if (!session) return
+    const c = session.content
+    const prev = tracks.find((x) => x.id === trackOf(c))
+    const prevTpl = templates.find((x) => x.id === prev?.default_template_id)
+    const untouched = !c.body_text.trim() || (!!prevTpl && c.body_text === docToText(prevTpl.body_rich))
+    const tpl = templates.find((x) => x.id === t.default_template_id)
+    if (untouched && (tpl || prevTpl)) {
+      const body_rich = tpl ? tpl.body_rich : EMPTY_DOC
+      const body_text = tpl ? docToText(tpl.body_rich) : ''
+      session.replaceContent({ track_id: t.id, body_rich, body_text, word_count: countWords(body_text) })
+    } else {
+      session.change({ track_id: t.id })
+    }
+  }
+
   if (!UUID.test(id)) return <Navigate to="/write" replace />
   if (error) return <div className="screen"><p className="screen-sub">Couldn't open this entry. Your words are safe on this device.</p></div>
   if (!session) return <p className="sr-only" role="status">Opening…</p>
 
   const c = session.content
+  const chapterNames = chaptersFor(c.entry_date, chapters).map((x) => x.name)
   const trialLine =
     state === 'readonly'
       ? 'Your trial has ended. You can still read and export everything. Unlock Daftar for $49, once, to keep writing.'
@@ -102,15 +127,15 @@ export function Write() {
             }}
             onBlur={onBlur}
           />
-          <div className="page-pills">
-            <span className="pill">
-              <span className="pill-dot" aria-hidden />
-              Daily
-            </span>
-            <span className="pill" aria-label={`Language: ${c.language}`}>
-              {c.language.toUpperCase()}
-            </span>
-          </div>
+          <EntryMeta
+            content={c}
+            editable={editable}
+            onTrack={onTrack}
+            onLanguage={(language) => session.change({ language })}
+            onTags={(tag_ids) => session.change({ tag_ids })}
+            onFields={(fields) => session.change({ fields })}
+          />
+          {chapterNames.length > 0 && <p className="meta chapter-line">{chapterNames.join(' · ')}</p>}
         </header>
         <p className="save-status" role="status" aria-live="polite">
           {session.unavailable

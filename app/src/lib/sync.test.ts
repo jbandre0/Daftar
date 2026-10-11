@@ -221,6 +221,44 @@ describe('hard kill (no pagehide)', () => {
   })
 })
 
+describe('metadata changes', () => {
+  it('every title/track/tag/fields change notifies subscribers, even while the status stays pending', async () => {
+    const server = new FakeServer()
+    const b = makeBrowser(server)
+    const id = newId()
+    const s = await session(b.tab('t1'), id, true)
+    let emits = 0
+    s.subscribe(() => emits++)
+    s.change({ fields: { scripture: 'A' } })
+    const afterFirst = emits
+    s.change({ fields: { scripture: 'Al' } })
+    s.change({ fields: { scripture: 'Alm' } })
+    expect(emits).toBeGreaterThanOrEqual(afterFirst + 2) // inputs stay in step with what was typed
+    expect(s.content.fields).toEqual({ scripture: 'Alm' })
+  })
+
+  it('tags, track and fields travel with the save and survive a reload', async () => {
+    const server = new FakeServer()
+    const b = makeBrowser(server)
+    const id = newId()
+    const s = await session(b.tab('t1'), id, true)
+    s.change({ track_id: 'track-1', tag_ids: ['t1', 't2'], fields: { scripture: 'Alma 32', answered_later: true } })
+    await s.flush()
+    await waitFor(() => s.status === 'saved')
+    const row = server.rows.get(id)!.content
+    expect([row.track_id, row.tag_ids, row.fields]).toEqual(['track-1', ['t1', 't2'], { scripture: 'Alma 32', answered_later: true }])
+    await s.close()
+    const s2 = await session(b.tab('t2'), id)
+    expect(s2.content.tag_ids).toEqual(['t1', 't2'])
+  })
+
+  it('drafts saved before phase 3 (no track/fields/tags) still open and compare equal to defaults', () => {
+    const old = { id: 'x', entry_date: '2026-10-01', title: '', body_rich: {}, body_text: '', language: 'en', word_count: 0 }
+    expect(sameContent(old, { ...old, track_id: null, fields: {}, tag_ids: [] })).toBe(true)
+    expect(sameContent(old, { ...old, tag_ids: ['a'] })).toBe(false)
+  })
+})
+
 describe('flush', () => {
   it('writes the unsaved tail to the device immediately, even while a slow save is in flight', async () => {
     const server = new FakeServer()

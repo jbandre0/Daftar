@@ -45,7 +45,15 @@ App lives in `app/`: Vite + React + TypeScript, vite-plugin-pwa, react-router, P
 - Supabase setting: keep anonymous sign-ins OFF (anonymous users get role authenticated and would get a trial).
 - New tables/functions are closed by default (0002); every migration must grant explicitly.
 
+## Organisation (phase 3)
+- Tracks/tags/chapters/templates load into `OrganizeProvider` (`app/src/organize.tsx`), cached in localStorage so the editor works offline. Their create/rename/hide writes are online-only direct table calls (RLS enforces the trial).
+- An entry's `track_id`, `fields`, and `tag_ids` ride through `save_entry()` with the text, so they are buffered offline like text. Unknown/foreign tag ids are skipped server-side and a refused tag link never fails a text save.
+- Chapters are never joined to entries: membership is `entry_date` inside [start_date, end_date] (null end = ongoing), computed at query time (`inChapter`, `entriesInRange`).
+- Template flow: switching track on a page that is blank or still equals the old template swaps in the new track's template; written text is never replaced. Spiritual field definitions (scripture, answered_later, answered_on) are hardcoded by track slug in `EntryMeta.tsx`.
+- When a control is bound to session state (not editor state), `EntrySession.change()` emits for any non-body patch (`metaVersion`). Without that, controlled inputs snap back to stale values.
+
 ## Status
+Phase 3 complete: migration 0004, tracks/tags/chapters UI (Settings cards, Chapters + chapter detail, track/language pills and tag bar in the entry header), Spiritual template, 102 DB checks, 27 client tests. Not yet exercised against the real Supabase from the browser (needs a signed-in session): create/rename/hide writes.
 Phase 2 complete: Tiptap editor (per-block dir=auto via decorations; JSON stays clean), `save_entry()` (migration 0003), sync engine + 19 tests, Write screen (/write = today's entry, /write/new, /write/:id), Desk with last 5 entries, offline account cache.
 Phase 1 complete: migrations 0001 + 0002 (Opus review fixes: same-owner composite keys, tsvector length cap, closed default privileges, bucket limits), `supabase/tests/rls.test.sql` (58 checks; `cd app && npm run db:test` runs them on PGlite), magic-link + 6-digit-code login, route guard.
 Decisions: `can_write` requires status='trial' (so refunded never writes); `can_edit` = unlocked or trial+48h grace; tracks are copied per account by the signup trigger; entry_versions is insert-only from the client.

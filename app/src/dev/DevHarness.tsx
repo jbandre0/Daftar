@@ -12,6 +12,10 @@ import { syncDeps } from '../lib/syncDeps'
 import { OfflineError, type EntryContent, type EntryRow, type SaveResult } from '../lib/entries'
 import { sameContent, type SyncDeps } from '../lib/sync'
 import { Write } from '../screens/Write'
+import { Chapters, ChapterDetail } from '../screens/Chapters'
+import { Settings } from '../screens/Settings'
+import { OrganizeCtx, type OrganizeValue } from '../organize'
+import { docToText } from '../lib/entries'
 
 const SERVER = 'daftar.dev.server'
 const OFFLINE = 'daftar.dev.offline'
@@ -60,6 +64,26 @@ const devDeps: SyncDeps = {
   },
 }
 
+const SPIRITUAL_TPL = '00000000-0000-4000-8000-0000000000e1'
+const fakeOrganize: OrganizeValue = {
+  tracks: [
+    { id: 'tr-daily', name: 'Daily', slug: 'daily', color_token: 'flame', default_template_id: null, sort_order: 1, is_builtin: true },
+    { id: 'tr-spirit', name: 'Spiritual', slug: 'spiritual', color_token: 'olive', default_template_id: SPIRITUAL_TPL, sort_order: 2, is_builtin: true },
+    { id: 'tr-letters', name: 'Letters', slug: 'letters', color_token: 'seal', default_template_id: null, sort_order: 3, is_builtin: true },
+  ],
+  tags: [{ id: 'tag-family', name: 'family' }, { id: 'tag-mosque', name: 'مسجد' }],
+  chapters: [{ id: 'ch-1', name: 'Junior year', description: '', start_date: '2026-09-01', end_date: null, color_token: 'olive' }],
+  templates: [{
+    id: SPIRITUAL_TPL, name: 'Spiritual',
+    body_rich: { type: 'doc', content: [
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'What I noticed' }] }, { type: 'paragraph' },
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Impressions' }] }, { type: 'paragraph' },
+    ] },
+  }],
+  refresh: async () => {},
+}
+void docToText
+
 const fakeAuth: AuthState = {
   session: { user: { id: 'dev-user', email: 'dev@localhost' } } as unknown as Session,
   profile: { id: 'dev-user', display_name: 'Dev', timezone: 'UTC', default_language: 'en', last_export_at: null, storage_bytes_used: 0 },
@@ -103,10 +127,15 @@ export default function DevHarness() {
   return (
     <AuthContext.Provider value={fakeAuth}>
       <SyncDepsContext.Provider value={deps}>
-        <Bar />
-        <Routes>
-          <Route path="write/:id" element={<Write />} />
-        </Routes>
+        <OrganizeCtx.Provider value={fakeOrganize}>
+          <Bar />
+          <Routes>
+            <Route path="write/:id" element={<Write />} />
+            <Route path="chapters" element={<Chapters />} />
+            <Route path="chapters/:id" element={<ChapterDetail />} />
+            <Route path="settings" element={<Settings />} />
+          </Routes>
+        </OrganizeCtx.Provider>
       </SyncDepsContext.Provider>
     </AuthContext.Provider>
   )

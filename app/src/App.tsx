@@ -8,7 +8,7 @@ import { Write, WriteToday } from './screens/Write'
 import { SyncBoot } from './components/SyncBoot'
 import { Browse } from './screens/Browse'
 import { Read } from './screens/Read'
-import { Chapters } from './screens/Chapters'
+import { Chapters, ChapterDetail } from './screens/Chapters'
 import { Letters } from './screens/Letters'
 import { Vault } from './screens/Vault'
 import { Settings } from './screens/Settings'
@@ -32,6 +32,7 @@ export function App() {
           <Route path="browse" element={<Browse />} />
           <Route path="read" element={<Read />} />
           <Route path="chapters" element={<Chapters />} />
+          <Route path="chapters/:id" element={<ChapterDetail />} />
           <Route path="letters" element={<Letters />} />
           <Route path="vault" element={<Vault />} />
           <Route path="settings" element={<Settings />} />

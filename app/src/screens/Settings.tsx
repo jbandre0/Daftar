@@ -2,6 +2,7 @@ import { Screen } from '../components/Screen'
 import { useTheme } from '../theme'
 import { useAuth } from '../auth'
 import { trialDaysLeft, writeState } from '../lib/account'
+import { LanguageCard, TagsCard, TracksCard } from '../components/OrganizeSettings'
 
 const TOKENS = [
   'desk', 'desk-raised', 'desk-line', 'page', 'page-line', 'ink', 'ink-soft', 'ash', 'ash-soft', 'flame', 'olive', 'seal',
@@ -36,6 +37,9 @@ export function Settings() {
             </button>
           </div>
         </div>
+        <TracksCard />
+        <TagsCard />
+        <LanguageCard />
         <div className="card">
           <h2>Theme</h2>
           <p style={{ marginBlockEnd: 'var(--sp-4)' }}>Lamplight is the desk at night. Daylight is the same desk by a window.</p>
@@ -60,7 +64,7 @@ export function Settings() {
           </div>
         </div>
       </div>
-      <p className="stub-note">Default language, reminders and account deletion arrive in phase 10.</p>
+      <p className="stub-note">Reminders and account deletion arrive in phase 10.</p>
     </Screen>
   )
 }

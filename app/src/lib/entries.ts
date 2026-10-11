@@ -9,7 +9,15 @@ export type EntryContent = {
   body_text: string
   language: string
   word_count: number
+  /** Optional so drafts written before phase 3 still load; use the helpers below to read them. */
+  track_id?: string | null
+  fields?: Record<string, unknown>
+  tag_ids?: string[]
 }
+
+export const trackOf = (c: EntryContent) => c.track_id ?? null
+export const fieldsOf = (c: EntryContent) => c.fields ?? {}
+export const tagsOf = (c: EntryContent) => c.tag_ids ?? []
 
 export type EntryRow = EntryContent & {
   revision: number
@@ -25,7 +33,8 @@ export class WriteBlockedError extends Error {}
 /** Network down, timeout, 5xx: retried with backoff. */
 export class OfflineError extends Error {}
 
-const ENTRY_COLUMNS = 'id, entry_date, title, body_rich, body_text, language, word_count, revision, updated_at, created_at, deleted_at'
+const ENTRY_COLUMNS =
+  'id, entry_date, title, body_rich, body_text, language, word_count, track_id, fields, revision, updated_at, created_at, deleted_at'
 
 export const EMPTY_DOC = { type: 'doc', content: [{ type: 'paragraph' }] }
 
@@ -63,10 +72,43 @@ export async function saveEntryRemote(content: EntryContent, baseRevision: numbe
 export async function fetchEntry(id: string): Promise<EntryRow | null> {
   const { data, error, status } = await supabase.from('entries').select(ENTRY_COLUMNS).eq('id', id).maybeSingle()
   if (error) throw classify(error, status)
-  return (data as EntryRow) ?? null
+  if (!data) return null
+  const tags = await supabase.from('entry_tags').select('tag_id').eq('entry_id', id).is('deleted_at', null)
+  if (tags.error) throw classify(tags.error, tags.status)
+  return { ...(data as EntryRow), tag_ids: (tags.data ?? []).map((t) => t.tag_id as string) }
 }
 
 export type EntrySummary = Pick<EntryRow, 'id' | 'entry_date' | 'title' | 'body_text' | 'word_count' | 'updated_at'>
+
+export async function entriesInRange(start: string, end: string | null): Promise<EntrySummary[]> {
+  let q = supabase
+    .from('entries')
+    .select('id, entry_date, title, body_text, word_count, updated_at')
+    .is('deleted_at', null)
+    .gte('entry_date', start)
+  if (end) q = q.lte('entry_date', end)
+  const { data, error, status } = await q.order('entry_date', { ascending: false }).limit(500)
+  if (error) throw classify(error, status)
+  return (data as EntrySummary[]) ?? []
+}
+
+/** Plain text of a ProseMirror doc, blocks separated by a blank line (matches the editor's getText). */
+export function docToText(doc: unknown): string {
+  const blocks: string[] = []
+  const walk = (n: any): string => {
+    if (!n) return ''
+    if (n.type === 'text') return n.text ?? ''
+    if (n.type === 'hardBreak') return '\n'
+    return (n.content ?? []).map(walk).join('')
+  }
+  const top = (doc as any)?.content ?? []
+  for (const n of top) {
+    if (n.type === 'bulletList' || n.type === 'orderedList') {
+      for (const li of n.content ?? []) blocks.push((li.content ?? []).map(walk).join('\n\n'))
+    } else blocks.push(walk(n))
+  }
+  return blocks.join('\n\n').replace(/^\n+|\n+$/g, '')
+}
 
 export async function recentEntries(limit = 5): Promise<EntrySummary[]> {
   const { data, error, status } = await supabase

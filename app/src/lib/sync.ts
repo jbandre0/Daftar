@@ -76,8 +76,13 @@ export type SyncDeps = {
 
 // ---------------------------------------------------------------------------------------------------------------
 
+const sortedTags = (c: EntryContent) => [...(c.tag_ids ?? [])].sort().join(',')
+
 export function sameContent(a: EntryContent, b: EntryContent): boolean {
   return (
+    (a.track_id ?? null) === (b.track_id ?? null) &&
+    JSON.stringify(a.fields ?? {}) === JSON.stringify(b.fields ?? {}) &&
+    sortedTags(a) === sortedTags(b) &&
     a.title === b.title &&
     a.body_text === b.body_text &&
     a.entry_date === b.entry_date &&
@@ -181,6 +186,8 @@ export class EntrySession {
   unavailable = false
   /** Bumped when another tab's text replaced ours, so the editor knows to reload. */
   remoteVersion = 0
+  /** Bumped on every change to anything except the body (title, track, language, tags, fields), so React re-renders controlled inputs. */
+  metaVersion = 0
 
   private basedOnSeq = 0
   private revision = 0
@@ -294,6 +301,10 @@ export class EntrySession {
     const next = { ...this.content, ...patch, id: this.id }
     if (sameContent(next, this.content)) return // not a real edit (e.g. editor re-init); never create a draft for it
     this.content = next
+    if (Object.keys(patch).some((k) => k !== 'body_rich' && k !== 'body_text' && k !== 'word_count')) {
+      this.metaVersion++
+      this.emit()
+    }
     this.memVersion++
     this.unavailable = false
     this.setStatus('pending')
@@ -302,6 +313,16 @@ export class EntrySession {
     if (!this.timers.localMax) this.timers.localMax = setTimeout(() => void this.writeLocal(), this.deps.timing.localMaxMs)
     this.scheduleSave(this.deps.timing.idleMs)
     if (!this.timers.max) this.timers.max = setTimeout(() => void this.saveNow(), this.deps.timing.maxWaitMs)
+  }
+
+  /**
+   * Apply a change that replaces the editor's content (a template): same as change(), but the editor
+   * is told to reload from `content`.
+   */
+  replaceContent(patch: Partial<EntryContent>) {
+    this.change(patch)
+    this.remoteVersion++
+    this.emit()
   }
 
   /** Blur, tab hidden, route change: write and save right away. */
@@ -444,5 +465,8 @@ function toContent(row: EntryRow): EntryContent {
     body_text: row.body_text,
     language: row.language,
     word_count: row.word_count,
+    track_id: row.track_id ?? null,
+    fields: row.fields ?? {},
+    tag_ids: row.tag_ids ?? [],
   }
 }

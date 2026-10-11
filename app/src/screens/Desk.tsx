@@ -71,6 +71,9 @@ export function Desk() {
         <Link className="btn btn-primary" to="/write">
           {hasToday ? 'Keep going' : 'Write today'}
         </Link>
+        <Link className="btn btn-quiet" to="/chapters">
+          Chapters
+        </Link>
       </div>
 
       {entries && entries.length > 0 && (
