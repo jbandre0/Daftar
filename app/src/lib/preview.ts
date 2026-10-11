@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import type { AuthState } from '../auth'
+import type { BrowseFilters, BrowseRow, DayEntry } from './browse'
 import type { EntrySummary } from './entries'
 import type { Organize } from './organize'
 import type { Rpc } from './vault'
@@ -17,5 +18,9 @@ export const preview: {
   range?: (start: string, end: string | null) => Promise<EntrySummary[]>
   remoteToday?: (today: string) => Promise<{ id: string; updated_at: string } | null>
   rpc?: Rpc
+  browse?: (f: BrowseFilters, offset: number) => Promise<{ rows: BrowseRow[]; total: number }>
+  monthDays?: (start: string, end: string) => Promise<Record<string, number>>
+  allDates?: () => Promise<string[]>
+  day?: (date: string) => Promise<DayEntry[]>
   Badge?: ComponentType
 } = { active: false }

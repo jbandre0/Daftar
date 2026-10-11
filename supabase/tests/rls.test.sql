@@ -157,6 +157,16 @@ select pg_temp.t('export_journal only exports the caller''s journal', '^ok:1$', 
 select pg_temp.t('restore into A''s entry from B''s session cannot touch it', '^ok:1$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$select 1 where (restore_batch('{"entries":[{"id":"00000000-0000-0000-0000-00000000aaa1","entry_date":"2026-10-01","body_text":"hijack","updated_at":"2030-01-01T00:00:00Z"}]}', '{}', false) -> 'entries' -> 0 ->> 'stored_as') <> '00000000-0000-0000-0000-00000000aaa1'$q$);
 select pg_temp.check_('A''s entry kept its text', (select body_text <> 'hijack' from entries where id = '00000000-0000-0000-0000-00000000aaa1'));
 
+-- ---- 5d. Browse and search ---------------------------------------------------------------------------------
+select pg_temp.t('browse: A finds own entry by PART of a word', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where exists (select 1 from browse_entries('alph') where id = '00000000-0000-0000-0000-00000000aaa1')$q$);
+select pg_temp.t('browse: B cannot find A''s words', '^ok:1$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$select 1 where not exists (select 1 from browse_entries('alph')) and not exists (select 1 from browse_entries('A first'))$q$);
+select pg_temp.t('browse: B''s list holds B''s entry and none of A''s', '^ok:1$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$select 1 where exists (select 1 from browse_entries() where id = '00000000-0000-0000-0000-00000000bbb1') and not exists (select 1 from browse_entries() where id in ('00000000-0000-0000-0000-00000000aaa1', '00000000-0000-0000-0000-00000000aaa2', '00000000-0000-0000-0000-00000000aaa5'))$q$);
+select pg_temp.t('browse: a % in the search is a plain character', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where not exists (select 1 from browse_entries('%') where id = '00000000-0000-0000-0000-00000000aaa1')$q$);
+select pg_temp.t('entry_dates: A sees own dates, once each', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where '2026-10-01'::date = any (entry_dates())$q$);
+select pg_temp.t('entry_dates: B does not see A''s dates', '^ok:1$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$select 1 where not ('2026-10-02'::date = any (entry_dates()))$q$);
+select pg_temp.t('browse: signed-out visitor cannot call it', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'anon', $q$select * from browse_entries()$q$);
+select pg_temp.t('entry_dates: signed-out visitor cannot call it', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'anon', $q$select entry_dates()$q$);
+
 -- ---- 6. Trial ended long ago (more than 48h): read-only ---------------------------------------------------
 update licenses set trial_ends_at = now() - interval '3 days' where user_id = '00000000-0000-0000-0000-0000000000a1';
 select pg_temp.t('expired: inserts fail',               '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entries (id, user_id, entry_date) values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000a1', '2026-10-03')$q$);

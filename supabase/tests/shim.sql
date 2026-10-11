@@ -33,7 +33,8 @@ create function storage.foldername(name text) returns text[] language sql immuta
   select (string_to_array(name, '/'))[1:greatest(array_length(string_to_array(name, '/'), 1) - 1, 0)]
 $$;
 
-grant usage on schema public, storage, auth to anon, authenticated;
+-- Supabase grants usage on the extensions schema (pg_trgm lives there) to these roles by default.
+grant usage on schema public, storage, auth, extensions to anon, authenticated;
 grant select, insert on storage.objects to authenticated;
 -- Supabase grants everything on new public tables to these roles by default; the migration must tighten it.
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;

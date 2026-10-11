@@ -17,6 +17,7 @@ Run each new file in `migrations/` once, in order, then re-run `tests/rls.test.s
 - `0003_save_entry.sql` (phase 2: the editor's save function)
 - `0004_organization.sql` (phase 3: Spiritual template, tags in save_entry)
 - `0005_vault.sql` (phase 4: export_journal, restore_meta, restore_batch, restore_remaps)
+- `0006_browse.sql` (phase 5: browse_entries search and filters, entry_dates)
 
 ## 3. Auth settings
 - **Authentication → URL Configuration**

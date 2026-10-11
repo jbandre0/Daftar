@@ -65,7 +65,18 @@ App lives in `app/`: Vite + React + TypeScript, vite-plugin-pwa, react-router, P
 - Tests: `src/lib/vault.db.test.ts` runs the real migrations on PGlite: round trip, restore twice, every conflict rule. 11 SQL mutations of the rules were each caught.
 - Not yet: pruning entry_versions older than 90 days (needs a scheduled job, phase 10); .zip with media (phase 6).
 
+## Browse and Read (phase 5)
+- `browse_entries()` (migration 0006) is the one call for the Browse list: filters + search. Partial words in ANY script (Arabic included) come from `ILIKE`, which needs no trigram support; typo tolerance is trigram `word_similarity` >= 0.5 and only for a single word of 5+ letters (shorter/multi-word queries are exact, otherwise "seed" matches "see"). **Known limit:** Arabic words are short, so a one-letter Arabic typo scores about 0.43 and is NOT caught in v1. Arabic normalisation is deferred by the spec.
+- `%`, `_` and `\` are escaped: they are plain characters in a search.
+- A sealed letter whose date hasn't come is never matched by title or text and gets `snippet = null`. **Phase 7 must keep this**: Read's `fetchDay` already blanks its body; the Letters screen owns the sealed card.
+- `lib/browse.ts` folds this device's unsynced drafts into results (and is the offline fallback) using `matchesFilters`, a client mirror of the server rules. Keep the two in step.
+- Browse state lives in the URL (`q, track, tags, lang, from, to, chapter, view, month, day`), so Back from an entry lands where you were. The calendar shows everything: when a search or filter is active the view is the list.
+- Read (`/read?date=`): `lib/readModel.ts` builds spreads from `entry_dates()`: one per day with entries, and each run of empty days collapses into ONE "N quiet days" spread (never counts, never guilt). ← earlier, → later; swipe left = later; jump-to-date lands on the day or the quiet run around it.
+- **THE PAGE-TURN IS NOT BUILT.** `components/PageStage.tsx` is the seam: Read renders each spread inside it with `spreadKey` and `direction` ('next' | 'prev' | 'jump' | 'none'); today it swaps with no motion. The owner wants the motion built as a showpiece (Opus, high effort). Read.tsx should not need to change. Read the contract in the PageStage comment.
+- Dev note: another chat's server may hold port 5173; `daftar-preview` in `.claude/launch.json` runs the preview on 5199.
+
 ## Status
+Phase 5 complete except the page-turn motion: migration 0006, Browse (search, filters, calendar with dots and chapter underlines, list with paging and highlights), Read (spreads, quiet days, keyboard, swipe, jump, PageStage seam). 115 DB checks, 92 client tests.
 Design pass complete (Heritage lamplight): fonts, tokens, parchment + glass, lozenge/diamond controls, floating nav, Desk hero, Handwriting option, contrast verified on real pixels. Layout verified at 375 px and 1280 px in both themes; the brass die, wax seal and calendar will follow this language when built.
 Phase 4 complete: migration 0005, Vault screen (export, restore preview → merge → report download, storage meter), Desk backup line + 30-day nudge. 107 DB checks, 52 client tests (incl. 21 Vault integration tests).
 Phase 3 complete: migration 0004, tracks/tags/chapters UI (Settings cards, Chapters + chapter detail, track/language pills and tag bar in the entry header), Spiritual template, 102 DB checks, 27 client tests. Not yet exercised against the real Supabase from the browser (needs a signed-in session): create/rename/hide writes.
