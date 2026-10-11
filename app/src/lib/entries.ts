@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { preview } from './preview'
 
 /** The parts of an entry the editor owns. Everything here round-trips through save_entry(). */
 export type EntryContent = {
@@ -81,6 +82,7 @@ export async function fetchEntry(id: string): Promise<EntryRow | null> {
 export type EntrySummary = Pick<EntryRow, 'id' | 'entry_date' | 'title' | 'body_text' | 'word_count' | 'updated_at'>
 
 export async function entriesInRange(start: string, end: string | null): Promise<EntrySummary[]> {
+  if (preview.range) return preview.range(start, end)
   let q = supabase
     .from('entries')
     .select('id, entry_date, title, body_text, word_count, updated_at')
@@ -111,6 +113,7 @@ export function docToText(doc: unknown): string {
 }
 
 export async function recentEntries(limit = 5): Promise<EntrySummary[]> {
+  if (preview.recent) return preview.recent(limit)
   const { data, error, status } = await supabase
     .from('entries')
     .select('id, entry_date, title, body_text, word_count, updated_at')

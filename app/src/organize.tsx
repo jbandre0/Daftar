@@ -1,12 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useAuth } from './auth'
 import { cachedOrganize, EMPTY, loadOrganize, type Organize } from './lib/organize'
+import { preview } from './lib/preview'
 
 export type OrganizeValue = Organize & { refresh: () => Promise<void> }
 export const OrganizeCtx = createContext<OrganizeValue | null>(null)
 
 /** Tracks, tags, chapters and templates for the signed-in user. Cached, so the editor works offline. */
 export function OrganizeProvider({ children }: { children: ReactNode }) {
+  if (preview.active && preview.organize) {
+    return <OrganizeCtx.Provider value={{ ...preview.organize, refresh: async () => {} }}>{children}</OrganizeCtx.Provider>
+  }
+  return <RealOrganizeProvider>{children}</RealOrganizeProvider>
+}
+
+function RealOrganizeProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth()
   const userId = session?.user.id
   const [data, setData] = useState<Organize>(EMPTY)

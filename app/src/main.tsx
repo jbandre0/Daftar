@@ -10,17 +10,29 @@ import './styles/shell.css'
 import { ThemeProvider } from './theme'
 import { AuthProvider } from './auth'
 import { App } from './App'
+import { preview } from './lib/preview'
 
 registerSW({ immediate: true })
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ThemeProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </AuthProvider>
-    </ThemeProvider>
-  </StrictMode>,
-)
+async function boot() {
+  // Dev server only: `/?preview=1` runs the whole app on sample data, no sign-in. Compiled out of production builds.
+  if (import.meta.env.DEV) {
+    const { maybeInstallPreview } = await import('./dev/previewBackend')
+    await maybeInstallPreview()
+  }
+  const Badge = preview.Badge
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <ThemeProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </AuthProvider>
+      </ThemeProvider>
+      {Badge && <Badge />}
+    </StrictMode>,
+  )
+}
+
+void boot()

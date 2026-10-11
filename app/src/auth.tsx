@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { cachedAccount, loadAccount, type License, type Profile } from './lib/account'
+import { preview } from './lib/preview'
 
 export type AuthState = {
   /** undefined while the first session check is running */
@@ -15,7 +16,13 @@ export type AuthState = {
 export const AuthContext = createContext<AuthState | null>(null)
 const Ctx = AuthContext
 
+/** Preview mode (dev only) supplies a fixed signed-in user; otherwise the real Supabase session. */
 export function AuthProvider({ children }: { children: ReactNode }) {
+  if (preview.active && preview.auth) return <Ctx.Provider value={preview.auth}>{children}</Ctx.Provider>
+  return <RealAuthProvider>{children}</RealAuthProvider>
+}
+
+function RealAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [license, setLicense] = useState<License | null>(null)

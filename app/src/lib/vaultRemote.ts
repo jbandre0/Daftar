@@ -1,7 +1,9 @@
 import { supabase } from './supabase'
+import { preview } from './preview'
 import type { Rpc } from './vault'
 
 export const supabaseRpc: Rpc = async (fn, args) => {
+  if (preview.rpc) return preview.rpc(fn, args)
   const { data, error } = await supabase.rpc(fn, args)
   if (error) {
     if (error.code === '42501') {
@@ -13,6 +15,7 @@ export const supabaseRpc: Rpc = async (fn, args) => {
 }
 
 export async function markExported(userId: string) {
+  if (preview.active) return
   await supabase.from('profiles').update({ last_export_at: new Date().toISOString() }).eq('id', userId)
 }
 

@@ -3,7 +3,9 @@ import type { EntrySummary } from '../lib/entries'
 
 function shortDate(iso: string) {
   const [y, m, d] = iso.split('-').map(Number)
-  return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(y, m - 1, d))
+  const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' }
+  if (y !== new Date().getFullYear()) opts.year = 'numeric' // the year only when it isn't this one
+  return new Intl.DateTimeFormat('en', opts).format(new Date(y, m - 1, d))
 }
 
 export function snippet(e: Pick<EntrySummary, 'body_text'>, max = 90) {

@@ -1,4 +1,3 @@
-import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Shell } from './components/Shell'
 import { RequireAuth } from './components/RequireAuth'
@@ -13,15 +12,10 @@ import { Letters } from './screens/Letters'
 import { Vault } from './screens/Vault'
 import { Settings } from './screens/Settings'
 
-const DevHarness = import.meta.env.DEV ? lazy(() => import('./dev/DevHarness')) : null
-
 export function App() {
   return (
     <Routes>
       <Route path="/welcome" element={<Onboarding />} />
-      {DevHarness && (
-        <Route path="/dev/*" element={<Suspense><DevHarness /></Suspense>} />
-      )}
       <Route element={<RequireAuth />}>
         <Route element={<SyncBoot />}>
         <Route element={<Shell />}>

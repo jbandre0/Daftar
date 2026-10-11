@@ -31,7 +31,7 @@ App lives in `app/`: Vite + React + TypeScript, vite-plugin-pwa, react-router, P
 `cd app && npm run dev | build | typecheck | test | db:test`
 - `npm test`: sync-engine suite (vitest + fake-indexeddb): offline, tab kill, rescue, two tabs, other devices.
 - `npm run db:test`: migrations + `supabase/tests/rls.test.sql` on PGlite.
-- Dev-only harness: `/dev/write/<uuid>` runs the real Write screen against a simulated server with an offline switch (not in production builds).
+- **Preview mode (dev only):** run `npm run dev`, open `http://localhost:5173/?preview=1`. The whole real app runs on sample data with a fixed signed-in user, no Supabase login needed. The server is simulated in localStorage with save_entry()'s rules; the badge top-right has an Offline switch and Reset. Leave with `/?preview=0`. Hooks live in `app/src/lib/preview.ts`; the backend in `app/src/dev/previewBackend.tsx`, loaded only behind `import.meta.env.DEV` (verified absent from production bundles). Restore and settings writes are not simulated (they need the real server). Use this for visual checks; use the real login for anything touching Supabase.
 
 ## Autosave architecture (phase 2): read `app/src/lib/sync.ts` header before touching saves
 - IndexedDB draft (shared by tabs) is the source of truth for unconfirmed text; saves always send the draft, never tab memory.
