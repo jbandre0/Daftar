@@ -7,6 +7,8 @@ create temp table rls_results (n serial, passed boolean, test text, detail text)
 
 -- Start clean in case an earlier run stopped half-way.
 delete from auth.users where email like 'rlstest-%@example.test';
+delete from templates where id = '00000000-0000-0000-0000-00000000e000';
+delete from prompts where text = 'Test prompt';
 
 -- Runs one statement as a given user/role and reports 'ok:<rows touched>' or 'err:<sqlstate>'.
 create or replace function pg_temp.run_as(uid uuid, role_name text, stmt text) returns text
@@ -47,6 +49,10 @@ insert into entries (id, user_id, entry_date, title, body_text) values
   ('00000000-0000-0000-0000-00000000aaa1', '00000000-0000-0000-0000-0000000000a1', '2026-10-01', 'A first', 'alpha'),
   ('00000000-0000-0000-0000-00000000bbb1', '00000000-0000-0000-0000-0000000000b2', '2026-10-01', 'B secret', 'beta');
 insert into prompts (text, depth) values ('Test prompt', 'light');
+insert into tags (id, user_id, name) values ('00000000-0000-0000-0000-0000000007b2', '00000000-0000-0000-0000-0000000000b2', 'b-private');
+insert into templates (id, user_id, name) values
+  ('00000000-0000-0000-0000-00000000e0b2', '00000000-0000-0000-0000-0000000000b2', 'B private template'),
+  ('00000000-0000-0000-0000-00000000e000', null, 'rlstest global template');
 
 -- ---- 1. Signup trigger -------------------------------------------------------------------------
 select pg_temp.check_('signup creates a profile', (select count(*) = 1 from profiles where id = '00000000-0000-0000-0000-0000000000a1'));
@@ -63,9 +69,15 @@ select pg_temp.t('A cannot insert an entry as B',       '^err:42501$', '00000000
 select pg_temp.t('A cannot update B''s entry',          '^ok:0$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update entries set title = 'hacked' where id = '00000000-0000-0000-0000-00000000bbb1'$q$);
 select pg_temp.check_('B''s entry is untouched', (select title = 'B secret' from entries where id = '00000000-0000-0000-0000-00000000bbb1'));
 select pg_temp.t('A cannot move own entry to B',        '^(ok:0|err:42501)$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update entries set user_id = '00000000-0000-0000-0000-0000000000b2' where id = '00000000-0000-0000-0000-00000000aaa1'$q$);
-select pg_temp.t('A cannot tag B''s entry',             '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entry_tags (entry_id, tag_id, user_id) values ('00000000-0000-0000-0000-00000000bbb1', gen_random_uuid(), '00000000-0000-0000-0000-0000000000a1')$q$);
-select pg_temp.t('A cannot attach media to B''s entry', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into media (user_id, entry_id, storage_path, mime, bytes, sha256) values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bbb1', 'x', 'image/webp', 1, 'abc')$q$);
-select pg_temp.t('A cannot version B''s entry',         '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entry_versions (entry_id, user_id, snapshot, reason) values ('00000000-0000-0000-0000-00000000bbb1', '00000000-0000-0000-0000-0000000000a1', '{}', 'concurrent_edit')$q$);
+select pg_temp.t('A cannot tag B''s entry',             '^err:(42501|23503)$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entry_tags (entry_id, tag_id, user_id) values ('00000000-0000-0000-0000-00000000bbb1', gen_random_uuid(), '00000000-0000-0000-0000-0000000000a1')$q$);
+select pg_temp.t('A cannot attach media to B''s entry', '^err:(42501|23503)$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into media (user_id, entry_id, storage_path, mime, bytes, sha256) values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bbb1', 'x', 'image/webp', 1, 'abc')$q$);
+select pg_temp.t('A cannot version B''s entry',         '^err:(42501|23503)$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entry_versions (entry_id, user_id, snapshot, reason) values ('00000000-0000-0000-0000-00000000bbb1', '00000000-0000-0000-0000-0000000000a1', '{}', 'concurrent_edit')$q$);
+
+select pg_temp.t('A cannot tag own entry with B''s tag', '^err:(42501|23503)$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entry_tags (entry_id, tag_id, user_id) values ('00000000-0000-0000-0000-00000000aaa1', '00000000-0000-0000-0000-0000000007b2', '00000000-0000-0000-0000-0000000000a1')$q$);
+select pg_temp.t('A cannot file own entry under B''s track', '^err:(42501|23503)$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', format($q$update entries set track_id = %L where id = '00000000-0000-0000-0000-00000000aaa1'$q$, (select id from tracks where user_id = '00000000-0000-0000-0000-0000000000b2' limit 1)));
+select pg_temp.t('A cannot point a track at B''s template', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update tracks set default_template_id = '00000000-0000-0000-0000-00000000e0b2' where user_id = '00000000-0000-0000-0000-0000000000a1' and slug = 'daily'$q$);
+select pg_temp.t('A can point a track at a global template', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update tracks set default_template_id = '00000000-0000-0000-0000-00000000e000' where user_id = '00000000-0000-0000-0000-0000000000a1' and slug = 'daily'$q$);
+select pg_temp.t('A can file own entry under own track', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', format($q$update entries set track_id = %L where id = '00000000-0000-0000-0000-00000000aaa1'$q$, (select id from tracks where user_id = '00000000-0000-0000-0000-0000000000a1' and slug = 'daily')));
 
 -- ---- 3. Nothing is ever hard-deleted from the client; anon sees nothing ---------------------------
 select pg_temp.t('A cannot hard-delete own entry',      '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$delete from entries where id = '00000000-0000-0000-0000-00000000aaa1'$q$);
@@ -87,6 +99,9 @@ select pg_temp.t('A cannot edit storage_bytes_used',    '^err:42501$', '00000000
 -- ---- 5. Server-side clock: updated_at and sealed letters ---------------------------------------------
 select pg_temp.t('A inserts a normal entry (trial running)', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entries (id, user_id, entry_date, title, updated_at) values ('00000000-0000-0000-0000-00000000aaa2', '00000000-0000-0000-0000-0000000000a1', '2026-10-02', 'forged clock', '2000-01-01')$q$);
 select pg_temp.check_('updated_at ignores the client value', (select updated_at > now() - interval '1 minute' from entries where id = '00000000-0000-0000-0000-00000000aaa2'));
+select pg_temp.t('a 2.6 MB entry still saves', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entries (id, user_id, entry_date, body_text) select '00000000-0000-0000-0000-00000000aaa3', '00000000-0000-0000-0000-0000000000a1', '2026-10-02', string_agg(md5(i::text), ' ') from generate_series(1, 80000) i$q$);
+select pg_temp.check_('a long entry is still searchable', (select search @@ to_tsquery('simple', md5('1')) from entries where id = '00000000-0000-0000-0000-00000000aaa3'));
+select pg_temp.check_('a long entry keeps its full text', (select length(body_text) > 2500000 from entries where id = '00000000-0000-0000-0000-00000000aaa3'));
 select pg_temp.t('sealed letter needs an unlock date',  '^err:23514$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entries (id, user_id, entry_date, sealed) values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000a1', '2026-10-02', true)$q$);
 
 -- ---- 6. Trial ended long ago (more than 48h): read-only ---------------------------------------------------
@@ -94,7 +109,7 @@ update licenses set trial_ends_at = now() - interval '3 days' where user_id = '0
 select pg_temp.t('expired: inserts fail',               '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entries (id, user_id, entry_date) values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000a1', '2026-10-03')$q$);
 select pg_temp.t('expired: edits fail',                 '^ok:0$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update entries set title = 'late' where id = '00000000-0000-0000-0000-00000000aaa1'$q$);
 select pg_temp.t('expired: new tags fail',              '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into tags (user_id, name) values ('00000000-0000-0000-0000-0000000000a1', 'late')$q$);
-select pg_temp.t('expired: reading still works',        '^ok:2$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select * from entries$q$);
+select pg_temp.t('expired: reading still works',        '^ok:3$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select * from entries$q$);
 select pg_temp.t('expired: can_write() is false',       '^ok:0$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where can_write()$q$);
 
 -- ---- 7. Grace window: ended less than 48h ago ----------------------------------------------------------------
@@ -131,9 +146,12 @@ begin
   delete from storage.objects where name like '00000000-0000-0000-0000-0000000000%/%';
 end $$;
 
+select pg_temp.check_('photo bucket only takes WebP up to 3 MB', (select file_size_limit = 3145728 and allowed_mime_types = array['image/webp'] from storage.buckets where id = 'media'));
+
 -- ---- Cleanup, then the report -------------------------------------------------------------------------------------
 delete from prompts where text = 'Test prompt';
 delete from auth.users where email like 'rlstest-%@example.test';
+delete from templates where id = '00000000-0000-0000-0000-00000000e000';
 select pg_temp.check_('test users and all their rows were removed', (select count(*) = 0 from entries where user_id in ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b2')));
 
 select case when passed then 'PASS' else 'FAIL' end as result, test, case when passed then '' else detail end as detail

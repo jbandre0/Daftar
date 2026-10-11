@@ -25,7 +25,15 @@ App lives in `app/`: Vite + React + TypeScript, vite-plugin-pwa, react-router, P
 ## Commands
 `cd app && npm run dev | build | typecheck`
 
+## Carry-forward from the Phase 1 Opus RLS review
+- Phase 2: do the save as ONE Postgres function (row lock, revision check, copy to entry_versions, write) so two tabs can't race; then revoke client insert on entry_versions.
+- Phase 6: media.bytes is client-reported, so the 2 GB cap can't trust it. Compute usage from storage.objects metadata server-side and enforce the cap in the storage insert policy.
+- Phase 7: the seal is UI-only per spec. Consider a trigger that blocks edits to a sealed letter before unlock_at.
+- Phase 10: deleting auth.users cascades rows but NOT storage objects; the delete-account function must remove them.
+- Supabase setting: keep anonymous sign-ins OFF (anonymous users get role authenticated and would get a trial).
+- New tables/functions are closed by default (0002); every migration must grant explicitly.
+
 ## Status
-Phase 1 built: `supabase/migrations/0001_init.sql`, `supabase/tests/rls.test.sql` (also `cd app && npm run db:test`, 49 checks on PGlite), magic-link + 6-digit-code login, route guard. Pending: user applies migration + runs test in the Supabase SQL editor; Opus review of RLS/can_write/can_edit.
+Phase 1 complete: migrations 0001 + 0002 (Opus review fixes: same-owner composite keys, tsvector length cap, closed default privileges, bucket limits), `supabase/tests/rls.test.sql` (58 checks; `cd app && npm run db:test` runs them on PGlite), magic-link + 6-digit-code login, route guard.
 Decisions: `can_write` requires status='trial' (so refunded never writes); `can_edit` = unlocked or trial+48h grace; tracks are copied per account by the signup trigger; entry_versions is insert-only from the client.
 Phase 0 complete (scaffold, tokens, fonts, both themes, nine routed stub screens, PWA manifest + service worker).
