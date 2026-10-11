@@ -26,6 +26,8 @@
   --glass-edge: rgba(255, 250, 238, 0.6);
   --glass-blur: blur(16px) saturate(1.05);
   --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 30px 60px -24px rgba(10, 4, 0, 0.7);
+  /* The paper of a page seen from behind while it turns (opaque: what the glass looks like over the parchment) */
+  --leaf-paper: #e7d9bc;
 
   /* Cards on the desk */
   --card-bg: var(--desk-raised);
@@ -66,6 +68,7 @@
   --glass-edge: rgba(255, 255, 255, 0.7);
   --glass-blur: blur(16px) saturate(1.05);
   --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 28px 50px -26px rgba(80, 50, 10, 0.55);
+  --leaf-paper: #f0e4cb;
 
   --card-bg: var(--glass);
   --card-edge: var(--glass-edge);

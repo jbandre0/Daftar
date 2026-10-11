@@ -359,8 +359,6 @@
   min-height: 40px; padding: 0 var(--sp-3); color: var(--ink); background: rgba(255, 255, 255, 0.4); border: 1px solid var(--page-line);
   border-radius: 999px; font-family: var(--font-ui); font-size: var(--fs-13); color-scheme: light;
 }
-.stage-wrap { touch-action: pan-y; }
-.stage { display: block; }
 .spread-head { padding-block-end: var(--sp-3); margin-block-end: var(--sp-4); border-block-end: 1px solid var(--page-line); }
 .spread-head .page-date { margin: 0; font-family: var(--font-script); font-size: var(--fs-display-sm); line-height: 1.15; color: var(--ink); font-weight: 400; }
 .spread-title { margin: 0 0 var(--sp-2); font-size: var(--fs-28); font-weight: 600; line-height: 1.25; font-variation-settings: 'opsz' 48; color: var(--ink); }
@@ -395,3 +393,59 @@
   .jump input { inline-size: 100%; min-inline-size: 0; padding-inline: var(--sp-2); }
   .jump .btn { --pt: 10px; padding-inline: calc(var(--pt) + 8px); }
 }
+
+/* ---------------------------------------------------------------------------------------------------------
+ * The book: page turns (PageStage). Layers stack in one grid cell; the turning sheet is on top.
+ * Nothing here animates opacity/filter on an ancestor of the glass page (that would break its blur).
+ * ------------------------------------------------------------------------------------------------------ */
+.stage { display: grid; position: relative; touch-action: pan-y; }
+.stage > .layer { grid-area: 1 / 1; position: relative; min-width: 0; }
+.stage > .layer[data-role='under'] { z-index: 1; }
+.stage > .layer[data-role='leaf'] { z-index: 2; pointer-events: none; }
+.stage[data-turning] { -webkit-user-select: none; user-select: none; cursor: grabbing; }
+.stage[data-edge='next'], .stage[data-edge='prev'] { cursor: grab; }
+.leaf { position: relative; }
+.fx { position: absolute; pointer-events: none; }
+.fx-shade { border-radius: var(--r-panel); }
+.fx-dim { border-radius: var(--r-panel); background: rgb(20, 11, 3); opacity: 0; }
+/* the paper's edge catching the lamp as it lifts */
+.fx-edge {
+  border-radius: 2px; opacity: 0;
+  background: linear-gradient(to bottom, rgba(255, 246, 226, 0), rgba(255, 246, 226, 0.95) 14%, rgba(255, 246, 226, 0.95) 86%, rgba(255, 246, 226, 0));
+}
+/* the moving shadow the sheet casts on what lies beneath */
+.fx-cast {
+  transform-origin: 0 0; opacity: 0;
+  background: linear-gradient(90deg, rgba(20, 10, 2, 0.9) 0%, rgba(20, 10, 2, 0.42) 30%, rgba(20, 10, 2, 0.12) 65%, rgba(20, 10, 2, 0) 100%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 1) 6%, rgba(255, 255, 255, 1) 88%, rgba(255, 255, 255, 0));
+  mask-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 1) 6%, rgba(255, 255, 255, 1) 88%, rgba(255, 255, 255, 0));
+}
+/* the back of the sheet: paper, with the writing faintly through it (mirrored, as real show-through is) */
+.leaf-back {
+  visibility: hidden; overflow: hidden; border-radius: var(--r-panel);
+  background-color: var(--leaf-paper); background-image: url('/grain.svg');
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 24px 50px -24px rgba(10, 4, 0, 0.6);
+}
+.leaf-showthrough { opacity: 0.085; filter: blur(0.45px); }
+.leaf-showthrough .page {
+  max-width: none; margin: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none;
+  border-color: transparent; box-shadow: none;
+}
+.fx-back-shade, .fx-ghost-shade { position: absolute; inset: 0; }
+/* riffled blank pages (a jump) */
+.fx-ghost {
+  overflow: hidden; border-radius: var(--r-panel); background-color: var(--leaf-paper);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 10px 28px -14px rgba(10, 4, 0, 0.55);
+}
+.fx-ghost::before {
+  /* the impression of writing: faint lines in the page's margins */
+  content: ''; position: absolute; inset: 22% var(--page-pad) 14%;
+  background: repeating-linear-gradient(to bottom, rgba(42, 31, 22, 0.075) 0 2px, transparent 2px 30px);
+  -webkit-mask-image: linear-gradient(90deg, rgba(255, 255, 255, 1) 70%, rgba(255, 255, 255, 0.35));
+  mask-image: linear-gradient(90deg, rgba(255, 255, 255, 1) 70%, rgba(255, 255, 255, 0.35));
+}
+.fx-ghost::after {
+  content: ''; position: absolute; inset-block-start: 8%; inset-inline-start: var(--page-pad); inline-size: 42%; block-size: 22px;
+  border-radius: 11px; background: rgba(42, 31, 22, 0.08);
+}
+.fx-ghost[data-side='back']::before, .fx-ghost[data-side='back']::after { opacity: 0.45; }

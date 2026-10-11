@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { CaretLeft, CaretRight } from '@phosphor-icons/react'
 import { useAuth } from '../auth'
 import { useOrganize } from '../organize'
-import { PageStage, type TurnDirection } from '../components/PageStage'
+import { PageStage, type Side, type StageSpread, type TurnDirection } from '../components/PageStage'
 import { RichText } from '../components/RichText'
 import { fetchAllDates, fetchDay, type DayEntry } from '../lib/browse'
 import { chaptersFor } from '../lib/organize'
@@ -97,42 +97,52 @@ export function Read() {
   const current = index >= 0 ? spreads[index] : null
   const key = current ? spreadKey(current) : 'none'
 
-  // the day's entries
-  const [entries, setEntries] = useState<DayEntry[] | null>(null)
-  const [loading, setLoading] = useState(false)
+  // The days, kept as they load. The current day and its neighbours are fetched ahead, so a page never turns
+  // onto "loading", and a page you drag already has its writing on it.
+  const [days, setDays] = useState<Record<string, DayEntry[]>>({})
+  const inflight = useRef(new Set<string>())
+  const ensure = useCallback(
+    (date: string) => {
+      if (inflight.current.has(date)) return
+      inflight.current.add(date)
+      fetchDay(userId, date).then(
+        (e) => setDays((d) => ({ ...d, [date]: e })),
+        () => inflight.current.delete(date),
+      )
+    },
+    [userId],
+  )
   useEffect(() => {
-    if (!current || current.kind !== 'day') {
-      setEntries(null)
-      return
+    if (index < 0) return
+    for (const j of [index, index + 1, index - 1, index + 2, index - 2]) {
+      const s = spreads[j]
+      if (s?.kind === 'day') ensure(s.date)
     }
-    let live = true
-    setLoading(true)
-    fetchDay(userId, current.date).then((e) => {
-      if (!live) return
-      setEntries(e)
-      setLoading(false)
-    })
-    return () => {
-      live = false
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, userId])
+  }, [index, spreads, ensure])
 
+  const renderSpread = (s: Spread) =>
+    s.kind === 'quiet' ? <QuietSpread s={s} /> : <DaySpread date={s.date} entries={days[s.date] ?? null} loading={!days[s.date]} />
+
+  const [distance, setDistance] = useState(0)
+  const scrollAfterTurn = useRef(false)
   const moveTo = useCallback(
-    (i: number, dir: TurnDirection) => {
-      if (i < 0 || i >= spreads.length) return
+    (i: number, dir: TurnDirection, opts: { gesture?: boolean } = {}) => {
+      if (i < 0 || i >= spreads.length || i === index) return
       setDirection(dir)
+      setDistance(i - index)
       setIndex(i)
       const s = spreads[i]
       setSp((prev) => { const n = new URLSearchParams(prev); n.set('date', s.kind === 'day' ? s.date : s.from); return n }, { replace: true })
-      window.scrollTo({ top: 0 })
+      // a turn from a button or key starts at the top of the page; a dragged page keeps your place until it lands
+      if (opts.gesture) scrollAfterTurn.current = true
+      else window.scrollTo({ top: 0 })
     },
-    [spreads, setSp],
+    [spreads, setSp, index],
   )
   const next = useCallback(() => moveTo(index + 1, 'next'), [moveTo, index])
   const prev = useCallback(() => moveTo(index - 1, 'prev'), [moveTo, index])
 
-  // keyboard: ← earlier, → later (never while typing in a field)
+  // keyboard: ← earlier, → later (never while typing in a field). Holding a key flicks through briskly.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || typing(document.activeElement)) return
@@ -143,23 +153,20 @@ export function Read() {
     return () => window.removeEventListener('keydown', onKey)
   }, [next, prev])
 
-  // swipe: a deliberate horizontal drag. Swipe left = the next page, like a book.
-  const touch = useRef<{ x: number; y: number; t: number } | null>(null)
-  const onTouchStart = (e: React.TouchEvent) => {
-    const t = e.touches[0]
-    touch.current = { x: t.clientX, y: t.clientY, t: Date.now() }
-  }
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const s = touch.current
-    touch.current = null
-    if (!s) return
-    const t = e.changedTouches[0]
-    const dx = t.clientX - s.x
-    const dy = t.clientY - s.y
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.6 && Date.now() - s.t < 800 && !window.getSelection()?.toString()) {
-      dx < 0 ? next() : prev()
-    }
-  }
+  const neighbour = useCallback(
+    (side: Side): StageSpread | null => {
+      const s = spreads[index + (side === 'next' ? 1 : -1)]
+      return s ? { key: spreadKey(s), node: renderSpread(s) } : null
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [spreads, index, days],
+  )
+  const onGestureTurn = useCallback((side: Side) => moveTo(index + (side === 'next' ? 1 : -1), side, { gesture: true }), [moveTo, index])
+  const onSettled = useCallback(() => {
+    if (!scrollAfterTurn.current) return
+    scrollAfterTurn.current = false
+    if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
 
   // jump to date
   const [jump, setJump] = useState('')
@@ -204,11 +211,16 @@ export function Read() {
         </button>
       </nav>
 
-      <div className="stage-wrap" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        <PageStage spreadKey={key} direction={direction}>
-          {current?.kind === 'quiet' ? <QuietSpread s={current} /> : current ? <DaySpread date={current.date} entries={entries} loading={loading} /> : null}
-        </PageStage>
-      </div>
+      <PageStage
+        spreadKey={key}
+        direction={direction}
+        distance={distance}
+        neighbour={neighbour}
+        onGestureTurn={onGestureTurn}
+        onSettled={onSettled}
+      >
+        {current ? renderSpread(current) : null}
+      </PageStage>
 
       <p className="sr-only" role="status" aria-live="polite">
         {current ? (current.kind === 'day' ? longDate(current.date) : quietLabel(current)) : ''}
