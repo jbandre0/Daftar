@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { localDate, recentEntries, type EntrySummary } from '../lib/entries'
 import { syncDeps } from '../lib/syncDeps'
+import { dismissNudge, shouldNudge, sinceText } from '../lib/vaultRemote'
 
 function greeting(d = new Date()) {
   const h = d.getHours()
@@ -21,6 +22,8 @@ function snippet(e: EntrySummary) {
 
 export function Desk() {
   const { session, profile } = useAuth()
+  const [dismissed, setDismissed] = useState(false)
+  const nudge = !dismissed && shouldNudge(profile?.last_export_at ?? null, profile?.created_at ?? null)
   const userId = session!.user.id
   const [entries, setEntries] = useState<EntrySummary[] | null>(null)
 
@@ -103,7 +106,25 @@ export function Desk() {
         </section>
       )}
 
-      <p className="quiet-line">Last backup: never. The Vault arrives in phase 4.</p>
+      {nudge ? (
+          <p className="nudge">
+            <span>Last backup: {sinceText(profile?.last_export_at ?? null)}. A fresh copy takes one tap.</span>
+            <Link className="btn btn-quiet" to="/vault">
+              Export
+            </Link>
+            <button
+              className="btn btn-quiet"
+              onClick={() => {
+                dismissNudge()
+                setDismissed(true)
+              }}
+            >
+              Not now
+            </button>
+          </p>
+      ) : (
+        <p className="quiet-line">Last backup: {sinceText(profile?.last_export_at ?? null)}</p>
+      )}
     </div>
   )
 }

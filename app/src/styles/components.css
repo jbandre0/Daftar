@@ -231,3 +231,14 @@
 .add-row { display: flex; gap: var(--sp-2); margin-block-start: var(--sp-3); }
 .add-row .field { flex: 1; }
 .select { width: 100%; min-height: var(--touch); padding: 0 var(--sp-3); color: var(--ash); background: var(--desk); border: 1px solid var(--desk-line); border-radius: var(--r-ui); font-family: var(--font-ui); font-size: var(--fs-17); }
+
+/* Vault */
+.vault .card { margin-block-end: var(--sp-4); }
+.done-line { color: var(--ash); border-inline-start: 2px solid var(--olive); padding-inline-start: var(--sp-3); }
+.report { margin: 0; display: grid; gap: 0; border-block-start: 1px solid var(--desk-line); }
+.report > div { display: flex; justify-content: space-between; gap: var(--sp-4); padding: var(--sp-2) 0; border-block-end: 1px solid var(--desk-line); }
+.report dt { color: var(--ash-soft); }
+.report dd { margin: 0; color: var(--ash); font-weight: 600; font-variant-numeric: tabular-nums; }
+.meter { block-size: 6px; border-radius: var(--r-pill); background: var(--desk-line); overflow: hidden; margin-block-start: var(--sp-3); }
+.meter i { display: block; block-size: 100%; background: var(--olive); }
+.nudge { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin-block-start: var(--sp-6); color: var(--ash-soft); font-size: var(--fs-13); }

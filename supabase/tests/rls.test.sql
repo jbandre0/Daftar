@@ -151,6 +151,12 @@ select pg_temp.t('A can rename a chapter', '^ok:1$', '00000000-0000-0000-0000-00
 select pg_temp.t('B cannot touch A''s chapter', '^ok:0$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$update chapters set name = 'x' where id = '00000000-0000-0000-0000-0000000000c1'$q$);
 select pg_temp.t('B cannot see A''s chapters', '^ok:0$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$select * from chapters$q$);
 
+select pg_temp.t('A records an import remap', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select remember_remap('entry', '00000000-0000-0000-0000-00000000f001', '00000000-0000-0000-0000-00000000aaa1')$q$);
+select pg_temp.t('B cannot see A''s import remaps', '^ok:0$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$select * from restore_remaps$q$);
+select pg_temp.t('export_journal only exports the caller''s journal', '^ok:1$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$select 1 where jsonb_array_length(export_journal() -> 'entries') = 1 and not (export_journal()::text like '%A first%')$q$);
+select pg_temp.t('restore into A''s entry from B''s session cannot touch it', '^ok:1$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$select 1 where (restore_batch('{"entries":[{"id":"00000000-0000-0000-0000-00000000aaa1","entry_date":"2026-10-01","body_text":"hijack","updated_at":"2030-01-01T00:00:00Z"}]}', '{}', false) -> 'entries' -> 0 ->> 'stored_as') <> '00000000-0000-0000-0000-00000000aaa1'$q$);
+select pg_temp.check_('A''s entry kept its text', (select body_text <> 'hijack' from entries where id = '00000000-0000-0000-0000-00000000aaa1'));
+
 -- ---- 6. Trial ended long ago (more than 48h): read-only ---------------------------------------------------
 update licenses set trial_ends_at = now() - interval '3 days' where user_id = '00000000-0000-0000-0000-0000000000a1';
 select pg_temp.t('expired: inserts fail',               '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entries (id, user_id, entry_date) values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000a1', '2026-10-03')$q$);

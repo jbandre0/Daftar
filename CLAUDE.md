@@ -52,7 +52,16 @@ App lives in `app/`: Vite + React + TypeScript, vite-plugin-pwa, react-router, P
 - Template flow: switching track on a page that is blank or still equals the old template swaps in the new track's template; written text is never replaced. Spiritual field definitions (scripture, answered_later, answered_on) are hardcoded by track slug in `EntryMeta.tsx`.
 - When a control is bound to session state (not editor state), `EntrySession.change()` emits for any non-body patch (`metaVersion`). Without that, controlled inputs snap back to stale values.
 
+## Vault (phase 4): read the header of `supabase/migrations/0005_vault.sql` before touching restore
+- Export = `export_journal()` (one SQL snapshot, deterministic order, UTC microsecond timestamps) wrapped in `app/src/lib/vault.ts` with readme/header, plus unsynced local drafts marked `"unsynced": true`.
+- Restore = `restore_meta` then `restore_batch` (100 entries per call), both with `p_dry_run`. The preview and the merge run the same SQL, so the preview is exact. The server applies every spec §5 rule; the client only batches and reports.
+- `restore_remaps` remembers ids that had to change (another account owns them) so re-restoring never duplicates. Report "remapped" = new entries stored under a new id.
+- Deviation: "unchanged" compares the whole entry (incl. body_rich, track, language) after the tag union, not just the spec's hash fields. More things count as changed, but changes never destroy text (versions kept).
+- Tests: `src/lib/vault.db.test.ts` runs the real migrations on PGlite: round trip, restore twice, every conflict rule. 11 SQL mutations of the rules were each caught.
+- Not yet: pruning entry_versions older than 90 days (needs a scheduled job, phase 10); .zip with media (phase 6).
+
 ## Status
+Phase 4 complete: migration 0005, Vault screen (export, restore preview → merge → report download, storage meter), Desk backup line + 30-day nudge. 107 DB checks, 52 client tests (incl. 21 Vault integration tests).
 Phase 3 complete: migration 0004, tracks/tags/chapters UI (Settings cards, Chapters + chapter detail, track/language pills and tag bar in the entry header), Spiritual template, 102 DB checks, 27 client tests. Not yet exercised against the real Supabase from the browser (needs a signed-in session): create/rename/hide writes.
 Phase 2 complete: Tiptap editor (per-block dir=auto via decorations; JSON stays clean), `save_entry()` (migration 0003), sync engine + 19 tests, Write screen (/write = today's entry, /write/new, /write/:id), Desk with last 5 entries, offline account cache.
 Phase 1 complete: migrations 0001 + 0002 (Opus review fixes: same-owner composite keys, tsvector length cap, closed default privileges, bucket limits), `supabase/tests/rls.test.sql` (58 checks; `cd app && npm run db:test` runs them on PGlite), magic-link + 6-digit-code login, route guard.

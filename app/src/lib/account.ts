@@ -7,6 +7,7 @@ export type Profile = {
   default_language: string
   last_export_at: string | null
   storage_bytes_used: number
+  created_at?: string
 }
 
 export type License = {

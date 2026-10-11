@@ -14,6 +14,8 @@ import { sameContent, type SyncDeps } from '../lib/sync'
 import { Write } from '../screens/Write'
 import { Chapters, ChapterDetail } from '../screens/Chapters'
 import { Settings } from '../screens/Settings'
+import { Vault } from '../screens/Vault'
+import { Desk } from '../screens/Desk'
 import { OrganizeCtx, type OrganizeValue } from '../organize'
 import { docToText } from '../lib/entries'
 
@@ -86,7 +88,7 @@ void docToText
 
 const fakeAuth: AuthState = {
   session: { user: { id: 'dev-user', email: 'dev@localhost' } } as unknown as Session,
-  profile: { id: 'dev-user', display_name: 'Dev', timezone: 'UTC', default_language: 'en', last_export_at: null, storage_bytes_used: 0 },
+  profile: { id: 'dev-user', display_name: 'Dev', timezone: 'UTC', default_language: 'en', last_export_at: null, storage_bytes_used: 184_233_000, created_at: '2026-08-01T00:00:00Z' },
   license: null,
   refresh: async () => {},
   signOut: async () => {},
@@ -134,6 +136,8 @@ export default function DevHarness() {
             <Route path="chapters" element={<Chapters />} />
             <Route path="chapters/:id" element={<ChapterDetail />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="vault" element={<Vault />} />
+            <Route path="desk" element={<Desk />} />
           </Routes>
         </OrganizeCtx.Provider>
       </SyncDepsContext.Provider>
