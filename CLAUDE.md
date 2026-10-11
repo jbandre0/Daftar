@@ -23,10 +23,22 @@ App lives in `app/`: Vite + React + TypeScript, vite-plugin-pwa, react-router, P
 - Spec gaps to resolve in phase 1: `can_edit()` is referenced but never defined (trial + 48h grace, or unlocked).
 
 ## Commands
-`cd app && npm run dev | build | typecheck`
+`cd app && npm run dev | build | typecheck | test | db:test`
+- `npm test`: sync-engine suite (vitest + fake-indexeddb): offline, tab kill, rescue, two tabs, other devices.
+- `npm run db:test`: migrations + `supabase/tests/rls.test.sql` on PGlite.
+- Dev-only harness: `/dev/write/<uuid>` runs the real Write screen against a simulated server with an offline switch (not in production builds).
+
+## Autosave architecture (phase 2): read `app/src/lib/sync.ts` header before touching saves
+- IndexedDB draft (shared by tabs) is the source of truth for unconfirmed text; saves always send the draft, never tab memory.
+- Draft write: 500 ms debounce, 1 s max during non-stop typing. Server: 2 s idle, 5 s max. Flush on blur/hidden/pagehide/route change.
+- pagehide/hidden also writes a synchronous localStorage "rescue" copy.
+- Web Lock per entry serialises saves across tabs; BroadcastChannel shows other tabs' text live.
+- A tab whose text isn't derived from the latest draft "displaces" it: the replaced text is sent and kept in entry_versions.
+- Clean drafts stay as a record of the confirmed revision; pruned after 7 days.
+- Never call `editor.setEditable(x)` without `emitUpdate=false`: it fires an update that looks like typing.
 
 ## Carry-forward from the Phase 1 Opus RLS review
-- Phase 2: do the save as ONE Postgres function (row lock, revision check, copy to entry_versions, write) so two tabs can't race; then revoke client insert on entry_versions.
+- (Done in phase 2: `save_entry()` is the single atomic save. It is security invoker, so the client keeps its insert grant on entry_versions; harmless, own rows only.)
 - Phase 6: media.bytes is client-reported, so the 2 GB cap can't trust it. Compute usage from storage.objects metadata server-side and enforce the cap in the storage insert policy.
 - Phase 7: the seal is UI-only per spec. Consider a trigger that blocks edits to a sealed letter before unlock_at.
 - Phase 10: deleting auth.users cascades rows but NOT storage objects; the delete-account function must remove them.
@@ -34,6 +46,7 @@ App lives in `app/`: Vite + React + TypeScript, vite-plugin-pwa, react-router, P
 - New tables/functions are closed by default (0002); every migration must grant explicitly.
 
 ## Status
+Phase 2 complete: Tiptap editor (per-block dir=auto via decorations; JSON stays clean), `save_entry()` (migration 0003), sync engine + 19 tests, Write screen (/write = today's entry, /write/new, /write/:id), Desk with last 5 entries, offline account cache.
 Phase 1 complete: migrations 0001 + 0002 (Opus review fixes: same-owner composite keys, tsvector length cap, closed default privileges, bucket limits), `supabase/tests/rls.test.sql` (58 checks; `cd app && npm run db:test` runs them on PGlite), magic-link + 6-digit-code login, route guard.
 Decisions: `can_write` requires status='trial' (so refunded never writes); `can_edit` = unlocked or trial+48h grace; tracks are copied per account by the signup trigger; entry_versions is insert-only from the client.
 Phase 0 complete (scaffold, tokens, fonts, both themes, nine routed stub screens, PWA manifest + service worker).

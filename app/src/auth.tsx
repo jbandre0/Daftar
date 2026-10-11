@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
-import { loadAccount, type License, type Profile } from './lib/account'
+import { cachedAccount, loadAccount, type License, type Profile } from './lib/account'
 
-type AuthState = {
+export type AuthState = {
   /** undefined while the first session check is running */
   session: Session | null | undefined
   profile: Profile | null
@@ -12,7 +12,8 @@ type AuthState = {
   signOut: () => Promise<void>
 }
 
-const Ctx = createContext<AuthState | null>(null)
+export const AuthContext = createContext<AuthState | null>(null)
+const Ctx = AuthContext
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -32,9 +33,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLicense(null)
       return
     }
-    const a = await loadAccount(userId)
-    setProfile(a.profile)
-    setLicense(a.license)
+    const cached = cachedAccount(userId)
+    if (cached.profile) setProfile(cached.profile)
+    if (cached.license) setLicense(cached.license)
+    try {
+      const a = await loadAccount(userId)
+      setProfile(a.profile)
+      setLicense(a.license)
+    } catch {
+      /* offline: the cached copy stands */
+    }
   }, [userId])
 
   useEffect(() => {

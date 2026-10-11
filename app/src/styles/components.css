@@ -99,3 +99,61 @@
 .form-error { color: var(--ash); border-inline-start: 2px solid var(--seal); padding-inline-start: var(--sp-3); }
 .fine { font-size: var(--fs-13); }
 .auth { max-width: 480px; padding-block-start: var(--sp-8); }
+
+/* Write screen */
+.write { padding-block-start: var(--sp-4); }
+.page-head .page-date { font-size: var(--fs-17); font-style: italic; color: var(--ink-soft); line-height: 1.3; margin: 0; }
+.page-title {
+  flex-basis: 100%; min-width: 0; padding: 0; border: 0; background: transparent; color: var(--ink);
+  font-family: var(--font-serif); font-size: var(--fs-display); font-style: italic; line-height: 1.2;
+  font-variation-settings: 'opsz' 72; text-align: start;
+}
+.page-title::placeholder { color: var(--ink-soft); opacity: 0.6; }
+.page-title:focus-visible { outline: none; }
+.page-pills { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.page .save-status { margin-block: 0 var(--sp-4); min-height: 1.4em; }
+.save-note { color: var(--ink); }
+.write-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  max-width: calc(66ch + 2 * var(--page-pad)); margin: var(--sp-3) auto 0; color: var(--ash-soft); font-size: var(--fs-13);
+}
+.write-foot .meta { padding-inline-start: var(--sp-2); }
+
+/* Editor */
+.toolbar {
+  position: sticky; inset-block-start: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: var(--sp-1);
+  margin-block: 0 var(--sp-3); padding-block: var(--sp-1); background: var(--page);
+  border-block-end: 1px solid var(--page-line);
+}
+.toolbar button {
+  display: grid; place-items: center; width: var(--touch); height: var(--touch);
+  background: none; border: 0; border-radius: var(--r-ui); color: var(--ink-soft); cursor: pointer;
+}
+.toolbar button:hover:not(:disabled) { color: var(--ink); background: var(--page-line); }
+.toolbar button[aria-pressed='true'] { color: var(--ink); background: var(--page-line); }
+.toolbar button:disabled { opacity: 0.4; cursor: default; }
+.ProseMirror { min-height: 40vh; outline: none; caret-color: var(--ink); }
+.ProseMirror:focus-visible { outline: none; }
+.ProseMirror [dir='auto'] { unicode-bidi: plaintext; text-align: start; }
+.ProseMirror p { margin: 0; }
+.ProseMirror p + p, .ProseMirror ul + p, .ProseMirror ol + p { margin-block-start: 1em; }
+.ProseMirror ul, .ProseMirror ol { padding-inline-start: 1.4em; margin-block: 0.6em; }
+.ProseMirror blockquote { margin-inline: 0; padding-inline-start: 1em; border-inline-start: 2px solid var(--page-line); color: var(--ink-soft); }
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder); float: inline-start; height: 0; color: var(--ink-soft); pointer-events: none;
+}
+.ProseMirror ::selection { background: var(--flame-glow); }
+
+/* Desk */
+.section-label { font-family: var(--font-ui); font-size: var(--fs-13); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ash-soft); margin-block-end: var(--sp-2); }
+.entry-list { list-style: none; margin: 0; padding: 0; border-block-start: 1px solid var(--desk-line); }
+.entry-list li { border-block-end: 1px solid var(--desk-line); }
+.entry-list a { display: flex; gap: var(--sp-4); align-items: baseline; padding: var(--sp-3) var(--sp-1); min-height: var(--touch); text-decoration: none; color: var(--ash); }
+.entry-list a:hover .entry-title { color: var(--flame); }
+.entry-date { flex: none; width: 4.5em; color: var(--ash-soft); font-size: var(--fs-13); }
+.entry-main { display: grid; gap: 2px; min-width: 0; }
+.entry-title { font-family: var(--font-serif); font-size: var(--fs-17); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entry-snippet { color: var(--ash-soft); font-size: var(--fs-13); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quiet-line { margin-block-start: var(--sp-6); color: var(--ash-soft); font-size: var(--fs-13); }
+
+.dev-bar { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; padding: var(--sp-2) var(--sp-4); background: var(--desk-raised); border-block-end: 1px solid var(--desk-line); font-size: var(--fs-13); color: var(--ash-soft); }

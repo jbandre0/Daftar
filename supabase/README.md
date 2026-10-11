@@ -11,6 +11,11 @@ New query → paste all of `tests/rls.test.sql` → **Run**. Every row in the re
 It creates two throw-away users, tries to break every rule, and deletes them afterwards.
 (The same test runs locally with `cd app && npm run db:test`.)
 
+## Later migrations
+Run each new file in `migrations/` once, in order, then re-run `tests/rls.test.sql`.
+- `0002_rls_hardening.sql` (phase 1 review)
+- `0003_save_entry.sql` (phase 2: the editor's save function)
+
 ## 3. Auth settings
 - **Authentication → URL Configuration**
   - Site URL: `http://localhost:5173` (switch to the real domain at launch)

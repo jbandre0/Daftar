@@ -27,6 +27,7 @@ export function Settings() {
               {state === 'grace' && 'Your trial has just ended. Edits to existing entries still save for a little while.'}
               {state === 'readonly' && "Your trial has ended. You can still read and export everything."}
               {state === 'unlocked' && 'Daftar is yours.'}
+              {state === 'unknown' && ''}
             </p>
           )}
           <div className="row" style={{ marginBlockStart: 'var(--sp-4)' }}>

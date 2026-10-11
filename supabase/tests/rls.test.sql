@@ -104,12 +104,27 @@ select pg_temp.check_('a long entry is still searchable', (select search @@ to_t
 select pg_temp.check_('a long entry keeps its full text', (select length(body_text) > 2500000 from entries where id = '00000000-0000-0000-0000-00000000aaa3'));
 select pg_temp.t('sealed letter needs an unlock date',  '^err:23514$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entries (id, user_id, entry_date, sealed) values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000a1', '2026-10-02', true)$q$);
 
+-- ---- 5b. save_entry: the editor's only save path ---------------------------------------------------------
+select pg_temp.t('save: new entry is created at revision 1', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where save_entry('{"id":"00000000-0000-0000-0000-00000000aaa5","entry_date":"2026-10-05","title":"t","body_text":"one","body_rich":{"type":"doc"}}', 0) @> '{"revision":1,"created":true,"conflict":false}'$q$);
+select pg_temp.t('save: next save bumps to revision 2', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where save_entry('{"id":"00000000-0000-0000-0000-00000000aaa5","body_text":"one two"}', 1) @> '{"revision":2,"conflict":false}'$q$);
+select pg_temp.t('save: identical retry is a no-op', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where save_entry('{"id":"00000000-0000-0000-0000-00000000aaa5","body_text":"one two"}', 1) @> '{"revision":2,"conflict":false}'$q$);
+select pg_temp.check_('save: partial save kept the other fields', (select title = 't' and body_text = 'one two' and entry_date = '2026-10-05' from entries where id = '00000000-0000-0000-0000-00000000aaa5'));
+select pg_temp.t('save: stale save from another device wins but flags a conflict', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where save_entry('{"id":"00000000-0000-0000-0000-00000000aaa5","body_text":"from the phone"}', 1) @> '{"revision":3,"conflict":true}'$q$);
+select pg_temp.check_('save: the overwritten version is kept', (select count(*) = 1 from entry_versions where entry_id = '00000000-0000-0000-0000-00000000aaa5' and reason = 'concurrent_edit' and snapshot ->> 'body_text' = 'one two' and not snapshot ? 'search'));
+select pg_temp.t('save: displaced tab text is kept as a version', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where save_entry('{"id":"00000000-0000-0000-0000-00000000aaa5","body_text":"merged"}', 3, '[{"body_text":"other tab"}]') @> '{"revision":4,"conflict":true}'$q$);
+select pg_temp.check_('save: displaced snapshot stored', (select count(*) = 1 from entry_versions where entry_id = '00000000-0000-0000-0000-00000000aaa5' and snapshot ->> 'body_text' = 'other tab'));
+select pg_temp.t('save: B cannot save into A''s entry', '^err:42501$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$select save_entry('{"id":"00000000-0000-0000-0000-00000000aaa5","body_text":"hijack"}', 4)$q$);
+select pg_temp.check_('save: A''s entry untouched by B', (select body_text = 'merged' and revision = 4 from entries where id = '00000000-0000-0000-0000-00000000aaa5'));
+select pg_temp.t('save: signed-out visitor cannot call it', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'anon', $q$select save_entry('{"id":"00000000-0000-0000-0000-00000000aaa6"}', 0)$q$);
+
 -- ---- 6. Trial ended long ago (more than 48h): read-only ---------------------------------------------------
 update licenses set trial_ends_at = now() - interval '3 days' where user_id = '00000000-0000-0000-0000-0000000000a1';
 select pg_temp.t('expired: inserts fail',               '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entries (id, user_id, entry_date) values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000a1', '2026-10-03')$q$);
 select pg_temp.t('expired: edits fail',                 '^ok:0$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update entries set title = 'late' where id = '00000000-0000-0000-0000-00000000aaa1'$q$);
 select pg_temp.t('expired: new tags fail',              '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into tags (user_id, name) values ('00000000-0000-0000-0000-0000000000a1', 'late')$q$);
-select pg_temp.t('expired: reading still works',        '^ok:3$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select * from entries$q$);
+select pg_temp.t('expired: reading still works',        '^ok:4$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select * from entries$q$);
+select pg_temp.t('expired: save_entry edit refused',    '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select save_entry('{"id":"00000000-0000-0000-0000-00000000aaa5","body_text":"late"}', 4)$q$);
+select pg_temp.t('expired: save_entry new entry refused', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select save_entry('{"id":"00000000-0000-0000-0000-00000000aaa7","body_text":"late"}', 0)$q$);
 select pg_temp.t('expired: can_write() is false',       '^ok:0$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where can_write()$q$);
 
 -- ---- 7. Grace window: ended less than 48h ago ----------------------------------------------------------------
@@ -117,6 +132,8 @@ update licenses set trial_ends_at = now() - interval '1 hour' where user_id = '0
 select pg_temp.t('grace: new entries blocked',          '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entries (id, user_id, entry_date) values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000a1', '2026-10-03')$q$);
 select pg_temp.t('grace: edits to existing entries land', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update entries set title = 'in progress' where id = '00000000-0000-0000-0000-00000000aaa1'$q$);
 select pg_temp.t('grace: a conflict version can be logged', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entry_versions (entry_id, user_id, snapshot, reason) values ('00000000-0000-0000-0000-00000000aaa1', '00000000-0000-0000-0000-0000000000a1', '{}', 'concurrent_edit')$q$);
+select pg_temp.t('grace: save_entry edit lands',       '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where save_entry('{"id":"00000000-0000-0000-0000-00000000aaa5","body_text":"landed in grace"}', 4) @> '{"revision":5}'$q$);
+select pg_temp.t('grace: save_entry new entry refused', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select save_entry('{"id":"00000000-0000-0000-0000-00000000aaa8","body_text":"new"}', 0)$q$);
 select pg_temp.t('grace: photos blocked (media row)',   '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into media (user_id, entry_id, storage_path, mime, bytes, sha256) values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000aaa1', 'x', 'image/webp', 1, 'abc')$q$);
 
 -- ---- 8. Unlocked, refunded -----------------------------------------------------------------------------------------
