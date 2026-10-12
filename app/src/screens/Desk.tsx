@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { EntryList } from '../components/EntryList'
-import { localDate, recentEntries, type EntrySummary } from '../lib/entries'
+import { localDate, recentEntries, summaryFromContent, type EntrySummary } from '../lib/entries'
 import { syncDeps } from '../lib/syncDeps'
 import { dismissNudge, shouldNudge, sinceText } from '../lib/vaultRemote'
 
@@ -26,10 +26,7 @@ export function Desk() {
     ;(async () => {
       // Local unsynced drafts first, so offline writing still shows up here.
       const drafts = (await syncDeps.store.all()).filter((d) => d.userId === userId)
-      const local: EntrySummary[] = drafts.map((d) => ({
-        id: d.id, entry_date: d.content.entry_date, title: d.content.title, body_text: d.content.body_text,
-        word_count: d.content.word_count, updated_at: new Date(d.updatedAt).toISOString(),
-      }))
+      const local = drafts.map((d) => summaryFromContent(d.content, d.updatedAt)).filter((x): x is EntrySummary => x !== null)
       let remote: EntrySummary[] = []
       try {
         remote = await recentEntries(5)
@@ -42,7 +39,7 @@ export function Desk() {
         if (!prev || e.updated_at > prev.updated_at) byId.set(e.id, e)
       }
       const merged = [...byId.values()]
-        .filter((e) => e.body_text.trim() || e.title)
+        .filter((e) => e.body_text.trim() || e.title || e.sealed_until)
         .sort((a, b) => (b.entry_date + b.updated_at).localeCompare(a.entry_date + a.updated_at))
         .slice(0, 5)
       if (!cancelled) setEntries(merged)
@@ -53,7 +50,7 @@ export function Desk() {
   }, [userId])
 
   const today = localDate()
-  const hasToday = entries?.some((e) => e.entry_date === today)
+  const hasToday = entries?.some((e) => e.entry_date === today && !e.is_letter && !e.sealed_until)
   const name = profile?.display_name ? `, ${profile.display_name}` : ''
 
   return (

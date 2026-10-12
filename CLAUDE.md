@@ -46,7 +46,7 @@ App lives in `app/`: Vite + React + TypeScript, vite-plugin-pwa, react-router, P
 ## Carry-forward from the Phase 1 Opus RLS review
 - (Done in phase 2: `save_entry()` is the single atomic save. It is security invoker, so the client keeps its insert grant on entry_versions; harmless, own rows only.)
 - (Done in phase 6: the 2 GB cap is counted from storage.objects sizes server-side; see Photos below.)
-- Phase 7: the seal is UI-only per spec. Consider a trigger that blocks edits to a sealed letter before unlock_at.
+- (Done in phase 7: a server-side guard now freezes a sealed letter; see Letters below.)
 - Phase 10: deleting auth.users cascades rows but NOT storage objects; the delete-account function must remove them. Also schedule the nightly photo job (see Photos).
 - Supabase setting: keep anonymous sign-ins OFF (anonymous users get role authenticated and would get a trial).
 - New tables/functions are closed by default (0002); every migration must grant explicitly.
@@ -93,7 +93,19 @@ App lives in `app/`: Vite + React + TypeScript, vite-plugin-pwa, react-router, P
 - **Unverified against real Supabase:** that Storage records `metadata.size` by the time we register (the app retries `upload_missing`, so a short delay is fine). First real upload will confirm it. Also unmeasured: phone GPU cost, iPhone Safari (wasm path tested in Chrome only).
 - Dev: `node app/scripts/make-test-photo.mjs <image>` makes the 15 MB GPS/orientation test photo in `public/__fixtures__/` (delete before shipping). `/?preview=1&used=2147450000` simulates a nearly full account.
 
+## Letters (phase 7): read `supabase/migrations/0008_letters.sql` and `app/src/lib/seal.ts` first
+- **"Sealed means hidden until the date, not encrypted."** The app keeps the promise everywhere; export still holds everything (the file belongs to the user). There is deliberately NO way to open a letter early.
+- **Server guard (`guard_sealed_letter` trigger, UPDATE only):** while `sealed and unlock_at > now()` the letter's content (text, title, recipient, date, the seal itself) cannot change, so a stale second tab can't overwrite it; sealing needs a future date; moving it to the trash and back is still allowed. Errors: errcode 55000, messages `letter_is_sealed` / `seal_needs_future_date`. `restore_batch` sets `daftar.restoring` so a restore can import text but still never breaks a seal, and clears the flag before it returns (the flag must never outlive the restore, even inside one transaction).
+- **Masking:** `browse_entries` returns no title, no snippet, never matches by title/words, and returns `letter_to` + `sealed_until` for a hidden letter; `list_letters()` does the same for the Letters screen. Client side, `maskIfSealed` / `summaryFromContent` / `rowFromContent` / `matchesFilters` / `fetchDay` apply the same rule to anything built from this device's drafts. Every NEW list that reads entries must go through one of these.
+- **Stale drafts:** when a save is refused as sealed, the id goes into `markKnownSealed` (localStorage); lists then ignore any local draft of that letter, so an old unsealed draft never appears. The draft itself is kept on the device (never delete words).
+- **Compose:** the Letters track (or `/write/new?letter=1`) makes a page a letter (`is_letter`). `LetterPanel` = "To" + a deliberate "Seal this letter…" step (warning in plain words, a date at least tomorrow, quick choices, a button that spells out the date). The seal opens at the START of the chosen day in the writer's own time zone (`unlockInstant`). After sealing, `Write.tsx` renders `SealedCard` and NEVER mounts the editor, so a sealed letter's words aren't even loaded into the page. Once the day comes it is an ordinary entry again with a note.
+- **Letters are not "today's page":** `findTodaysEntry` and the Desk's Write today / Keep going ignore letters.
+- **Visuals:** `WaxSeal` (CSS only: lopsided disc, lit from the lamp, pressed rim, embossed dal د, cracked when open) and `SealedCard` (voice table: "Sealed until 20 April 2029.").
+- **Limits:** "sealed now" on the device uses the device clock (the server uses its own for lists/search); setting the clock forward only defeats a promise the owner made to themselves.
+- **Preview:** sample letters (sealed far and near, opened, draft); the simulated server enforces the same seal rules.
+
 ## Status
+Phase 7 complete: migration 0008, seal guard, masked lists, Letters screen, compose + seal flow, wax seal, sealed pages in Write and Read. 136 DB checks, 212 client tests (guard and masking mutation-tested). Not yet run against real Supabase.
 Phase 6 complete: migration 0007, photo pipeline, upload queue, photo node (paste/drop/toolbar), photos in Read, .zip export and restore, storage meter on server numbers. 124 DB checks, 173 client tests (mutation-tested). Not yet exercised against real Supabase Storage.
 Phase 5 complete including the page turn (Opus): migration 0006, Browse (search, filters, calendar with dots and chapter underlines, list with paging and highlights), Read (spreads, quiet days, keyboard, drag, jump, page-turn with riffle). 115 DB checks, 104 client tests.
 Design pass complete (Heritage lamplight): fonts, tokens, parchment + glass, lozenge/diamond controls, floating nav, Desk hero, Handwriting option, contrast verified on real pixels. Layout verified at 375 px and 1280 px in both themes; the brass die, wax seal and calendar will follow this language when built.

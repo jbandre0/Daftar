@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { EntrySummary } from '../lib/entries'
+import { unlockLabel } from '../lib/seal'
 
 function shortDate(iso: string) {
   const [y, m, d] = iso.split('-').map(Number)
@@ -21,13 +22,22 @@ export function EntryList({ entries }: { entries: EntrySummary[] }) {
           <Link to={`/write/${e.id}`}>
             <span className="entry-date">{shortDate(e.entry_date)}</span>
             <span className="entry-main">
-              <span className="entry-title" dir="auto">
-                {e.title || snippet(e) || 'Untitled'}
-              </span>
-              {e.title && (
-                <span className="entry-snippet" dir="auto">
-                  {snippet(e)}
-                </span>
+              {e.sealed_until ? (
+                <>
+                  <span className="entry-title" dir="auto">{e.letter_to ? `A letter to ${e.letter_to}` : 'A sealed letter'}</span>
+                  <span className="entry-snippet sealed-note">Sealed until {unlockLabel(e.sealed_until)}.</span>
+                </>
+              ) : (
+                <>
+                  <span className="entry-title" dir="auto">
+                    {e.title || snippet(e) || 'Untitled'}
+                  </span>
+                  {e.title && (
+                    <span className="entry-snippet" dir="auto">
+                      {snippet(e)}
+                    </span>
+                  )}
+                </>
               )}
             </span>
           </Link>

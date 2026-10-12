@@ -10,9 +10,11 @@ import { useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { preview } from '../lib/preview'
 import { syncDeps } from '../lib/syncDeps'
-import { OfflineError, localDate, type EntryContent, type EntryRow, type EntrySummary, type SaveResult } from '../lib/entries'
+import { OfflineError, SealRejectedError, localDate, summaryFromContent, type EntryContent, type EntryRow, type EntrySummary, type SaveResult } from '../lib/entries'
+import { isSealedNow, maskIfSealed } from '../lib/seal'
+import { sortLetters, type LetterRow } from '../lib/letters'
 import { sameContent } from '../lib/sync'
-import { matchesFilters, makeSnippet, PAGE_SIZE, type BrowseFilters, type BrowseRow, type DayEntry } from '../lib/browse'
+import { matchesFilters, rowFromContent, PAGE_SIZE, type BrowseFilters, type BrowseRow, type DayEntry } from '../lib/browse'
 import type { Organize } from '../lib/organize'
 import type { AuthState } from '../auth'
 import { README, FORMAT, SCHEMA_VERSION, APP_VERSION } from '../lib/vault'
@@ -24,7 +26,7 @@ import { sha256Hex } from '../lib/photos'
 const SERVER = 'daftar.preview.server'
 const OFFLINE = 'daftar.preview.offline'
 const FLAG = 'daftar.preview'
-const SEED_VERSION = '3'
+const SEED_VERSION = '4'
 const SEED_KEY = 'daftar.preview.seed'
 
 type Row = { content: EntryContent; revision: number; updated_at: string; created_at: string }
@@ -109,7 +111,18 @@ function seed() {
     ], { track_id: 'tr-spiritual', tag_ids: ['tag-mosque'], fields: { scripture: 'Alma 32', answered_later: false } }),
     sample(2, 3, 'Fireworks', ['Loud, bright, and my little cousin covered his ears the whole time and still refused to leave.'], { tag_ids: ['tag-family'] }),
     sample(3, 5, '', ['A dream about a lighthouse that kept turning toward me no matter which way I walked on the shore.'], { track_id: 'tr-dreams' }),
-    sample(4, 9, 'To me, at graduation', ['Open this when you walk. You were more afraid than you let on, and it turned out fine.'], { track_id: 'tr-letters' }),
+    sample(4, 9, 'To me, at graduation', ['Open this when you walk. You were more afraid than you let on, and it turned out fine.'], {
+      track_id: 'tr-letters', is_letter: true, letter_to: 'Future me', sealed: true, unlock_at: '2029-04-20T00:00:00.000Z',
+    }),
+    sample(21, 14, 'For Mom', ['Mom, I am writing this a few weeks early so it arrives when you need it most.'], {
+      track_id: 'tr-letters', is_letter: true, letter_to: 'Mom', sealed: true, unlock_at: new Date(Date.now() + 40 * 86_400_000).toISOString(),
+    }),
+    sample(22, 40, 'To Dad', ['Dad, the thing about the old truck is that I finally understood why you never sold it.'], {
+      track_id: 'tr-letters', is_letter: true, letter_to: 'Dad', sealed: true, unlock_at: new Date(Date.now() - 12 * 86_400_000).toISOString(),
+    }),
+    sample(23, 1, 'Dear Sam', ['Sam, I keep starting this letter and stopping. Here is the part I am sure about.'], {
+      track_id: 'tr-letters', is_letter: true, letter_to: 'Sam',
+    }),
     sample(5, 16, 'عن الصبر', ['الصبر ليس انتظارًا فقط، بل هو كيف نتصرف أثناء الانتظار.'], { language: 'ar' }),
     sample(6, 38, 'The long road home', [
       'We left before sunrise and the fields were still grey. Dad drove, I mostly watched the light arrive.',
@@ -147,6 +160,9 @@ async function save(content: EntryContent, base: number, displaced: EntryContent
     if (sameContent(cur.content, content) && displaced.length === 0) {
       return { id: content.id, revision: cur.revision, updated_at: cur.updated_at, conflict: false, created: false }
     }
+    // the seal guard (migration 0008): a sealed letter whose day hasn't come can't be changed, and a seal needs a future day
+    if (isSealedNow(cur.content)) throw new SealRejectedError('sealed', 'letter_is_sealed')
+    if (content.sealed && !cur.content.sealed && !isSealedNow(content)) throw new SealRejectedError('date', 'seal_needs_future_date')
     if (cur.revision !== base) {
       db.versions.push({ id: crypto.randomUUID(), entry_id: content.id, content: cur.content, at: now })
       conflict = true
@@ -169,10 +185,9 @@ async function fetchEntry(id: string): Promise<EntryRow | null> {
   return r ? { ...r.content, revision: r.revision, updated_at: r.updated_at, created_at: r.created_at, deleted_at: null } : null
 }
 
-const summary = (r: Row): EntrySummary => ({
-  id: r.content.id, entry_date: r.content.entry_date, title: r.content.title, body_text: r.content.body_text,
-  word_count: r.content.word_count, updated_at: r.updated_at,
-})
+const summary = (r: Row): EntrySummary => summaryFromContent({ ...r.content, id: r.content.id }, Date.parse(r.updated_at)) ?? {
+  id: r.content.id, entry_date: r.content.entry_date, title: null, body_text: '', word_count: 0, updated_at: r.updated_at,
+}
 
 const allRows = () => Object.values(readDb().rows)
 
@@ -356,11 +371,7 @@ export async function maybeInstallPreview() {
       await sleep(120)
       const all = allRows()
         .filter((r) => matchesFilters(r.content, f))
-        .map((r): BrowseRow => ({
-          id: r.content.id, entry_date: r.content.entry_date, title: r.content.title || null, snippet: makeSnippet(r.content.body_text, f.q),
-          word_count: r.content.word_count, updated_at: r.updated_at, track_id: r.content.track_id ?? null, language: r.content.language,
-          tag_ids: r.content.tag_ids ?? [],
-        }))
+        .map((r): BrowseRow => rowFromContent(r.content, Date.parse(r.updated_at), f.q, false))
         .sort((a, b) => (b.entry_date + b.updated_at).localeCompare(a.entry_date + a.updated_at))
       return { rows: all.slice(offset, offset + PAGE_SIZE), total: all.length }
     },
@@ -377,12 +388,31 @@ export async function maybeInstallPreview() {
       allRows()
         .filter((r) => r.content.entry_date === date)
         .sort((a, b) => a.created_at.localeCompare(b.created_at))
-        .map((r) => ({
-          id: r.content.id, entry_date: date, title: r.content.title, body_rich: r.content.body_rich, body_text: r.content.body_text,
-          language: r.content.language, word_count: r.content.word_count, track_id: r.content.track_id ?? null, tag_ids: r.content.tag_ids ?? [],
-        })),
+        .map((r) => {
+          const m = maskIfSealed({ ...r.content, title: r.content.title ?? '' })
+          const hidden = m.sealed_until !== null
+          return {
+            id: r.content.id, entry_date: date, title: hidden ? '' : r.content.title, body_rich: hidden ? { type: 'doc', content: [] } : r.content.body_rich,
+            body_text: m.body_text, language: r.content.language, word_count: r.content.word_count, track_id: r.content.track_id ?? null,
+            tag_ids: r.content.tag_ids ?? [], sealed_until: m.sealed_until, letter_to: m.letter_to,
+          }
+        }),
+    letters: async (): Promise<LetterRow[]> =>
+      sortLetters(
+        allRows()
+          .filter((r) => r.content.is_letter || r.content.sealed)
+          .map((r): LetterRow => {
+            const m = maskIfSealed({ ...r.content, title: r.content.title ?? '' })
+            const hidden = m.sealed_until !== null
+            return {
+              id: r.content.id, entry_date: r.content.entry_date, title: hidden ? null : r.content.title || null,
+              snippet: hidden ? null : r.content.body_text.replace(/\s+/g, ' ').trim().slice(0, 160), word_count: r.content.word_count,
+              updated_at: r.updated_at, letter_to: r.content.letter_to ?? null, sealed: !!r.content.sealed, unlock_at: r.content.unlock_at ?? null,
+            }
+          }),
+      ),
     remoteToday: async (today: string) => {
-      const r = allRows().filter((x) => x.content.entry_date === today).sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0]
+      const r = allRows().filter((x) => x.content.entry_date === today && !x.content.is_letter && !x.content.sealed).sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0]
       return r ? { id: r.content.id, updated_at: r.updated_at } : null
     },
     rpc: async (fn: string) => {
@@ -397,7 +427,8 @@ export async function maybeInstallPreview() {
         entries: Object.values(db.rows).map((r) => ({
           id: r.content.id, entry_date: r.content.entry_date, title: r.content.title, track_id: r.content.track_id ?? null,
           tag_ids: r.content.tag_ids ?? [], language: r.content.language, body_text: r.content.body_text, body_rich: r.content.body_rich,
-          word_count: r.content.word_count, fields: r.content.fields ?? {}, letter: null,
+          word_count: r.content.word_count, fields: r.content.fields ?? {},
+          letter: r.content.is_letter || r.content.sealed ? { to: r.content.letter_to ?? null, sealed: !!r.content.sealed, unlock_at: r.content.unlock_at ?? null } : null,
           media: (db.media ?? []).filter((m) => m.entry_id === r.content.id).map((m) => ({ id: m.id, mime: 'image/webp', width: m.width, height: m.height, bytes: m.bytes, sha256: m.sha256, file: `media/${r.content.id.slice(0, 8)}/${m.id}.webp` })),
           created_at: r.created_at, updated_at: r.updated_at,
         })),

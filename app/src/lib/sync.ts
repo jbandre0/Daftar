@@ -21,9 +21,10 @@
 import { DELETE, type Draft, type DraftStore } from './draftStore'
 
 export const CLEAN_DRAFT_TTL_MS = 7 * 24 * 3600 * 1000
-import { OfflineError, WriteBlockedError, type EntryContent, type EntryRow, type SaveResult } from './entries'
+import { OfflineError, SealRejectedError, WriteBlockedError, type EntryContent, type EntryRow, type SaveResult } from './entries'
+import { markKnownSealed } from './seal'
 
-export type SaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'local' | 'failed' | 'blocked'
+export type SaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'local' | 'failed' | 'blocked' | 'sealed'
 
 export const STATUS_TEXT: Record<SaveStatus, string> = {
   idle: '',
@@ -33,6 +34,7 @@ export const STATUS_TEXT: Record<SaveStatus, string> = {
   local: "Saved on this device. Will sync when you're back online.",
   failed: "Couldn't reach the server. Your words are safe on this device.",
   blocked: 'Saved on this device. Writing is paused on this account, so it will sync when you unlock Daftar.',
+  sealed: "This letter is sealed, so this copy can't be changed.",
 }
 
 export const CONFLICT_NOTE = 'This entry was also edited elsewhere. The other version is kept.'
@@ -80,6 +82,10 @@ const sortedTags = (c: EntryContent) => [...(c.tag_ids ?? [])].sort().join(',')
 
 export function sameContent(a: EntryContent, b: EntryContent): boolean {
   return (
+    !!a.is_letter === !!b.is_letter &&
+    (a.letter_to ?? null) === (b.letter_to ?? null) &&
+    !!a.sealed === !!b.sealed &&
+    (a.unlock_at ?? null) === (b.unlock_at ?? null) &&
     (a.track_id ?? null) === (b.track_id ?? null) &&
     JSON.stringify(a.fields ?? {}) === JSON.stringify(b.fields ?? {}) &&
     sortedTags(a) === sortedTags(b) &&
@@ -164,6 +170,7 @@ export async function syncAll(deps: SyncDeps, userId: string): Promise<{ pushed:
     } catch (e) {
       waiting++
       if (e instanceof WriteBlockedError) blocked = true
+      if (e instanceof SealRejectedError && e.reason === 'sealed') markKnownSealed(d.id)
     }
   }
   return { pushed, waiting, blocked }
@@ -184,6 +191,8 @@ export class EntrySession {
   note: string | null = null
   /** Set when the entry exists on the server but couldn't be loaded (offline, no local copy). */
   unavailable = false
+  /** Why the last save was refused as a seal problem ('sealed' = changed elsewhere; 'date' = not a future day). */
+  sealRejection: 'sealed' | 'date' | null = null
   /** Bumped when another tab's text replaced ours, so the editor knows to reload. */
   remoteVersion = 0
   /** Bumped on every change to anything except the body (title, track, language, tags, fields), so React re-renders controlled inputs. */
@@ -413,7 +422,12 @@ export class EntrySession {
       if (stillDirty) this.scheduleSave(this.deps.timing.idleMs)
       this.emit()
     } catch (e) {
-      if (e instanceof WriteBlockedError) {
+      if (e instanceof SealRejectedError) {
+        // sealed elsewhere (or a bad date): retrying can't help, and what was typed stays on this device
+        if (e.reason === 'sealed') markKnownSealed(this.id)
+        this.sealRejection = e.reason
+        this.setStatus('sealed')
+      } else if (e instanceof WriteBlockedError) {
         this.setStatus('blocked') // waits for retry(): unlock, or next app open
       } else {
         this.setStatus(e instanceof OfflineError || !this.deps.isOnline() ? 'local' : 'failed')
@@ -468,5 +482,9 @@ function toContent(row: EntryRow): EntryContent {
     track_id: row.track_id ?? null,
     fields: row.fields ?? {},
     tag_ids: row.tag_ids ?? [],
+    is_letter: row.is_letter ?? false,
+    letter_to: row.letter_to ?? null,
+    sealed: row.sealed ?? false,
+    unlock_at: row.unlock_at ?? null,
   }
 }

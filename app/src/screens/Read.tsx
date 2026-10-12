@@ -5,6 +5,7 @@ import { useAuth } from '../auth'
 import { useOrganize } from '../organize'
 import { PageStage, type Side, type StageSpread, type TurnDirection } from '../components/PageStage'
 import { RichText } from '../components/RichText'
+import { SealedCard } from '../components/Seal'
 import { fetchAllDates, fetchDay, type DayEntry } from '../lib/browse'
 import { chaptersFor } from '../lib/organize'
 import { buildSpreads, quietLabel, spreadIndexFor, spreadKey, type Spread } from '../lib/readModel'
@@ -30,6 +31,14 @@ function DaySpread({ date, entries, loading }: { date: string; entries: DayEntry
       {entries?.map((e, i) => {
         const track = tracks.find((t) => t.id === e.track_id)
         const tagNames = e.tag_ids.map((id) => tags.find((t) => t.id === id)?.name).filter(Boolean) as string[]
+        if (e.sealed_until) {
+          // a letter that hasn't opened: a wax seal, and nothing of what it says
+          return (
+            <section key={e.id} className={`spread-entry${i > 0 ? ' later' : ''}`}>
+              <SealedCard to={e.letter_to ?? null} until={e.sealed_until} big note="It opens on its own, on the day." />
+            </section>
+          )
+        }
         return (
           <section key={e.id} className={`spread-entry${i > 0 ? ' later' : ''}`}>
             {e.title && <h2 className="spread-title" dir="auto">{e.title}</h2>}

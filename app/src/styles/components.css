@@ -129,12 +129,13 @@
 }
 .tag-chip button { display: grid; place-items: center; inline-size: 24px; block-size: 24px; margin-inline-end: -6px; border: 0; background: none; color: var(--ink-soft); cursor: pointer; border-radius: 50%; }
 .tag-chip button:hover { color: var(--ink); }
-.tag-add input, .fields input[type='text'], .fields input:not([type]), .fields input[type='date'] {
+.tag-add input, .fields input[type='text'], .fields input:not([type]), .fields input[type='date'],
+.letter-panel input:not([type='checkbox']) {
   min-height: 34px; padding: 0 var(--sp-2); color: var(--ink); background: transparent; border: 0; border-block-end: 1px solid var(--page-line);
   font-family: var(--font-ui); font-size: var(--fs-13); border-radius: 0;
 }
 .tag-add input { inline-size: 9em; }
-.tag-add input::placeholder, .fields input::placeholder { color: var(--ink-soft); }
+.tag-add input::placeholder, .fields input::placeholder, .letter-panel input::placeholder { color: var(--ink-soft); }
 .tag-note { flex-basis: 100%; color: var(--ink-soft); font-family: var(--font-ui); font-size: var(--fs-13); }
 .fields { flex-basis: 100%; display: grid; gap: var(--sp-2); padding-block-start: var(--sp-2); }
 .field-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); font-family: var(--font-ui); font-size: var(--fs-13); color: var(--ink-soft); }
@@ -484,3 +485,84 @@
 .rich .photo:first-child { margin-block-start: 0; }
 .photo-lines { margin: 0; padding-inline-start: var(--sp-5); color: var(--ash-soft); font-size: var(--fs-13); display: grid; gap: var(--sp-1); }
 :root[data-theme='daylight'] .photo-lines { color: var(--ash); }
+
+/* ---------------------------------------------------------------------------------------------------------
+ * Letters: the wax seal and the sealed card
+ * ------------------------------------------------------------------------------------------------------ */
+.wax { position: relative; display: inline-block; flex: none; inline-size: var(--size, 88px); block-size: var(--size, 88px); }
+/* a pressed lump of wax: a lopsided disc, lit from the lamp (top-left), shadowed underneath */
+.wax::before {
+  content: ''; position: absolute; inset: 0; border-radius: 53% 47% 56% 44% / 46% 57% 43% 54%;
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 190, 165, 0.55) 0%, rgba(255, 190, 165, 0) 34%),
+    radial-gradient(circle at 50% 55%, #a63b2c 0%, var(--seal) 52%, #5a1b12 100%);
+  box-shadow:
+    0 7px 16px -4px rgba(0, 0, 0, 0.55),
+    inset 0 -5px 9px rgba(40, 6, 2, 0.45),
+    inset 0 3px 5px rgba(255, 180, 155, 0.3);
+}
+/* the pressed rim */
+.wax-ring {
+  position: absolute; inset: 15%; border-radius: 50%;
+  border: calc(var(--size, 88px) * 0.025) solid rgba(255, 185, 160, 0.2);
+  box-shadow: inset 0 1px 2px rgba(40, 6, 2, 0.5), 0 1px 0 rgba(255, 190, 165, 0.18);
+}
+/* the monogram, embossed (the Arabic letter dal: the first letter of "daftar") */
+.wax-mark {
+  position: absolute; inset: 0; display: grid; place-items: center; font-style: normal; line-height: 1;
+  font-family: var(--font-serif); font-size: calc(var(--size, 88px) * 0.5); color: rgba(70, 14, 8, 0.78); padding-block-end: 3%;
+  text-shadow: 0 1px 0 rgba(255, 190, 165, 0.38), 0 -1px 0 rgba(30, 4, 0, 0.55);
+}
+/* the same seal once the day has come: cracked across, and a little faded */
+.wax[data-open]::before { filter: saturate(0.7) brightness(0.9); }
+.wax-crack {
+  position: absolute; inset-inline: 6%; inset-block-start: 49%; block-size: 3px; transform: rotate(-24deg);
+  background: linear-gradient(90deg, transparent, rgba(25, 3, 0, 0.85) 18%, rgba(25, 3, 0, 0.85) 82%, transparent);
+  clip-path: polygon(0 40%, 14% 0, 28% 70%, 44% 10%, 58% 80%, 74% 20%, 88% 60%, 100% 30%, 100% 70%, 88% 100%, 74% 50%, 58% 100%, 44% 40%, 28% 100%, 14% 30%, 0 80%);
+}
+
+.sealed-card {
+  display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-5); text-decoration: none; color: var(--ash);
+  background: var(--card-bg); border: 1px solid var(--card-edge); border-radius: var(--r-card);
+  -webkit-backdrop-filter: var(--card-blur); backdrop-filter: var(--card-blur); box-shadow: var(--card-shadow);
+}
+a.sealed-card:hover { background: var(--tint); }
+.sealed-text { display: grid; gap: 2px; min-width: 0; }
+.sealed-to { font-family: var(--font-serif); font-size: var(--fs-22); font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.sealed-until { color: var(--ash-soft); font-style: italic; font-family: var(--font-serif); font-size: var(--fs-17); }
+.sealed-note-line { margin-block-start: var(--sp-2); color: var(--ash-soft); font-size: var(--fs-13); }
+:root[data-theme='daylight'] .sealed-until, :root[data-theme='daylight'] .sealed-note-line { color: var(--ash); }
+.sealed-card.big { flex-direction: column; text-align: center; padding: var(--sp-7) var(--sp-5); background: none; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; color: var(--ink); }
+.sealed-card.big .sealed-until, .sealed-card.big .sealed-note-line { color: var(--ink-soft); }
+.sealed-card.big .sealed-to { font-size: var(--fs-28); }
+.sealed-card.big .wax { --size: 120px; }
+.sealed-page { display: grid; justify-items: center; gap: var(--sp-3); }
+.sealed-page .quiet-note { margin-block: 0; }
+.sealed-list { list-style: none; margin: 0 0 var(--sp-6); padding: 0; display: grid; gap: var(--sp-3); }
+.letters-empty { display: flex; align-items: center; gap: var(--sp-5); }
+.letters-empty p { color: var(--ash-soft); max-width: 46ch; }
+:root[data-theme='daylight'] .letters-empty p { color: var(--ash); }
+.letters section + section { margin-block-start: var(--sp-6); }
+.letter-subject { color: var(--ash-soft); font-weight: 400; }
+
+/* Composing: the letter part of a page (on the glass) */
+.letter-panel { flex-basis: 100%; display: grid; gap: var(--sp-3); padding-block-start: var(--sp-2); }
+.letter-panel .field-row input { font-size: var(--fs-15); }
+.letter-panel .btn-tint { --fill: rgba(42, 31, 22, 0.12); color: var(--ink); }
+.letter-panel .btn-primary { color: var(--on-flame); }
+.letter-panel .btn-quiet { color: var(--ink); }
+.letter-opened { font-style: italic; }
+.seal-confirm {
+  display: grid; gap: var(--sp-3); padding: var(--sp-4); border: 1px solid var(--page-line); border-radius: 18px; background: rgba(255, 255, 255, 0.28);
+  font-family: var(--font-ui); font-size: var(--fs-13); color: var(--ink);
+}
+.seal-confirm .chip { color: var(--ink); }
+.seal-confirm .chip::before { background: rgba(42, 31, 22, 0.1); }
+.seal-confirm .chip[aria-pressed='true'] { color: var(--on-flame); }
+.seal-confirm .chip[aria-pressed='true']::before { background: var(--flame); }
+.seal-confirm input[type='date'] { color-scheme: light; }
+.seal-confirm .form-error { color: var(--ink); }
+
+/* Buttons that sit on the glass page use the page's ink, not the desk's cream */
+.page .btn:not(.btn-primary) { color: var(--ink); }
+.page .btn-tint { --fill: rgba(42, 31, 22, 0.12); }

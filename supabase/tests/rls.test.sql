@@ -178,6 +178,21 @@ select pg_temp.t('photos: signed-out visitor cannot register', '^err:42501$', '0
 select pg_temp.t('photos: clean-up helpers are not for signed-in users', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select * from media_orphans()$q$);
 select pg_temp.t('photos: A cannot read B''s storage usage', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select storage_used_bytes_for('00000000-0000-0000-0000-0000000000b2')$q$);
 
+-- ---- 5f. Letters: the seal guard, and lists that never reveal a sealed letter ---------------------------------------------
+select pg_temp.t('letters: A writes a letter', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where save_entry('{"id":"00000000-0000-0000-0000-00000000bee1","entry_date":"2026-10-01","title":"Secret title","body_text":"secret words","is_letter":true,"letter_to":"Future me"}', 0) @> '{"revision":1}'$q$);
+select pg_temp.t('letters: sealing for a past day is refused', '^err:55000$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select save_entry('{"id":"00000000-0000-0000-0000-00000000bee1","sealed":true,"unlock_at":"2020-01-01T00:00:00Z"}', 1)$q$);
+select pg_temp.t('letters: A seals it for a future day', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where save_entry('{"id":"00000000-0000-0000-0000-00000000bee1","sealed":true,"unlock_at":"2099-04-20T00:00:00Z"}', 1) @> '{"revision":2}'$q$);
+select pg_temp.t('letters: a sealed letter cannot be rewritten', '^err:55000$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select save_entry('{"id":"00000000-0000-0000-0000-00000000bee1","body_text":"rewritten"}', 2)$q$);
+select pg_temp.t('letters: ...or have its seal removed', '^err:55000$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select save_entry('{"id":"00000000-0000-0000-0000-00000000bee1","sealed":false}', 2)$q$);
+select pg_temp.t('letters: ...or its day moved', '^err:55000$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select save_entry('{"id":"00000000-0000-0000-0000-00000000bee1","unlock_at":"2030-01-01T00:00:00Z"}', 2)$q$);
+select pg_temp.check_('letters: the words are untouched', (select body_text = 'secret words' and sealed from entries where id = '00000000-0000-0000-0000-00000000bee1'));
+select pg_temp.t('letters: browse hides its title and words, and shows who and when', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where exists (select 1 from browse_entries() where id = '00000000-0000-0000-0000-00000000bee1' and title is null and snippet is null and letter_to = 'Future me' and sealed_until is not null)$q$);
+select pg_temp.t('letters: search never finds it by words or title', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where not exists (select 1 from browse_entries('secret'))$q$);
+select pg_temp.t('letters: list_letters masks it', '^ok:1$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select 1 where exists (select 1 from list_letters() where id = '00000000-0000-0000-0000-00000000bee1' and title is null and snippet is null and is_sealed_now)$q$);
+select pg_temp.t('letters: B sees none of A''s letters', '^ok:0$', '00000000-0000-0000-0000-0000000000b2', 'authenticated', $q$select * from list_letters()$q$);
+select pg_temp.t('letters: signed-out visitors cannot list letters', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'anon', $q$select * from list_letters()$q$);
+delete from entries where id = '00000000-0000-0000-0000-00000000bee1'; -- (this section's letter is removed again so the counts below are unchanged)
+
 -- ---- 6. Trial ended long ago (more than 48h): read-only ---------------------------------------------------
 update licenses set trial_ends_at = now() - interval '3 days' where user_id = '00000000-0000-0000-0000-0000000000a1';
 select pg_temp.t('expired: inserts fail',               '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into entries (id, user_id, entry_date) values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000a1', '2026-10-03')$q$);

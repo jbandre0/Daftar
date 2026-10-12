@@ -5,6 +5,7 @@ import type { EntrySummary } from './entries'
 import type { Organize } from './organize'
 import type { Rpc } from './vault'
 import type { PhotoBackend } from './photoQueue'
+import type { LetterRow } from './letters'
 import type { MediaApi } from './photoRuntime'
 
 /**
@@ -21,6 +22,7 @@ export const preview: {
   remoteToday?: (today: string) => Promise<{ id: string; updated_at: string } | null>
   rpc?: Rpc
   photos?: PhotoBackend & MediaApi
+  letters?: () => Promise<LetterRow[]>
   browse?: (f: BrowseFilters, offset: number) => Promise<{ rows: BrowseRow[]; total: number }>
   monthDays?: (start: string, end: string) => Promise<Record<string, number>>
   allDates?: () => Promise<string[]>

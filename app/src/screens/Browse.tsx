@@ -6,6 +6,7 @@ import { useOrganize } from '../organize'
 import { chaptersFor, LANGUAGES, languageLabel, type Chapter } from '../lib/organize'
 import { activeFilterCount, browseEntries, fetchMonthDays, NO_FILTERS, PAGE_SIZE, type BrowseFilters, type BrowseRow } from '../lib/browse'
 import { localDate } from '../lib/entries'
+import { unlockLabel } from '../lib/seal'
 
 type View = 'cal' | 'list'
 
@@ -67,10 +68,12 @@ function Results({ rows, q, empty }: { rows: BrowseRow[]; q: string; empty: Reac
               <span className="entry-date">{shortDate(r.entry_date)}</span>
               <span className="entry-main">
                 <span className="entry-title" dir="auto">
-                  {r.title ? <Highlight text={r.title} q={q} /> : r.snippet ? <Highlight text={r.snippet.slice(0, 70)} q={q} /> : 'Untitled'}
+                  {r.sealed_until
+                    ? r.letter_to ? `A letter to ${r.letter_to}` : 'A sealed letter'
+                    : r.title ? <Highlight text={r.title} q={q} /> : r.snippet ? <Highlight text={r.snippet.slice(0, 70)} q={q} /> : 'Untitled'}
                 </span>
                 {r.snippet === null ? (
-                  <span className="entry-snippet sealed-note">A sealed letter</span>
+                  <span className="entry-snippet sealed-note">{r.sealed_until ? `Sealed until ${unlockLabel(r.sealed_until)}.` : 'A sealed letter'}</span>
                 ) : (
                   r.title && (
                     <span className="entry-snippet" dir="auto">

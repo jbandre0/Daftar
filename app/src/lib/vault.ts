@@ -79,6 +79,9 @@ export function overlayDrafts(data: ServerExport, drafts: Draft[]): ServerExport
       entry_date: c.entry_date, title: c.title, track_id: c.track_id ?? null, tag_ids: [...(c.tag_ids ?? [])].sort(),
       language: c.language, body_text: c.body_text, body_rich: c.body_rich, word_count: c.word_count,
       fields: c.fields ?? {}, updated_at: iso(d.updatedAt), unsynced: true as const,
+      ...(c.is_letter !== undefined || c.sealed !== undefined
+        ? { letter: c.is_letter || c.sealed ? { to: c.letter_to ?? null, sealed: !!c.sealed, unlock_at: c.unlock_at ?? null } : null }
+        : {}),
     }
     const i = entries.findIndex((e) => e.id === d.id)
     if (i >= 0) entries[i] = { ...entries[i], ...patch }

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { idbDraftStore } from './draftStore'
-import { OfflineError, WriteBlockedError, type EntryContent, type EntryRow, type SaveResult } from './entries'
+import { OfflineError, SealRejectedError, WriteBlockedError, type EntryContent, type EntryRow, type SaveResult } from './entries'
 import {
   CONFLICT_NOTE, EntrySession, sameContent, syncAll, unsyncedDrafts,
   type Rescue, type RescueStore, type SyncDeps, type SyncMessage,
@@ -25,6 +25,7 @@ class FakeServer {
   offline = false
   blocked = false
   loseNextResponse = false
+  sealedReject: 'sealed' | 'date' | null = null
   calls = 0
   latency = 3
 
@@ -33,6 +34,7 @@ class FakeServer {
     this.calls++
     if (this.offline) throw new OfflineError('offline')
     if (this.blocked) throw new WriteBlockedError('paused')
+    if (this.sealedReject) throw new SealRejectedError(this.sealedReject, 'refused')
     const cur = this.rows.get(content.id)
     let conflict = false
     let revision = 1
@@ -362,6 +364,51 @@ describe('offline and failures', () => {
     const r = await syncAll(b.tab('t2'), USER)
     expect(r.pushed).toBe(1)
     expect(server.rows.get(id)!.content.body_text).toBe('from yesterday')
+  })
+})
+
+describe('a refused seal never costs words', () => {
+  it('a save refused because the letter is sealed is not retried, and what was typed stays on this device', async () => {
+    const server = new FakeServer()
+    const b = makeBrowser(server)
+    const id = newId()
+    const s = await session(b.tab('t1'), id, true)
+    server.sealedReject = 'sealed'
+    await type(s, ['sealed', 'elsewhere'])
+    await waitFor(() => s.status === 'sealed')
+    expect(s.sealRejection).toBe('sealed')
+    const calls = server.calls
+    await sleep(120)
+    expect(server.calls).toBe(calls) // no retry storm
+    expect((await unsyncedDrafts(b.tab('t1'), USER))[0].content.body_text).toBe('sealed elsewhere') // the words are kept
+  })
+  it('a bad seal date is reported as such, so the page can take the seal back off', async () => {
+    const server = new FakeServer()
+    const b = makeBrowser(server)
+    const s = await session(b.tab('t1'), newId(), true)
+    server.sealedReject = 'date'
+    s.change({ body_text: 'x', sealed: true, unlock_at: '2020-01-01T00:00:00Z' })
+    await s.flush()
+    expect(s.status).toBe('sealed')
+    expect(s.sealRejection).toBe('date')
+    server.sealedReject = null
+    s.change({ sealed: false, unlock_at: null }) // taking the seal off, words untouched
+    await waitFor(() => s.status === 'saved')
+    expect(s.content.body_text).toBe('x')
+  })
+  it('letter fields travel with the save and count as changes', async () => {
+    const server = new FakeServer()
+    const b = makeBrowser(server)
+    const id = newId()
+    const s = await session(b.tab('t1'), id, true)
+    s.change({ body_text: 'dear you', is_letter: true, letter_to: 'You' })
+    await s.flush()
+    await waitFor(() => s.status === 'saved')
+    expect(server.rows.get(id)!.content).toMatchObject({ is_letter: true, letter_to: 'You' })
+    s.change({ sealed: true, unlock_at: '2099-01-01T00:00:00Z' })
+    await s.flush()
+    await waitFor(() => s.status === 'saved')
+    expect(server.rows.get(id)!.content).toMatchObject({ sealed: true, unlock_at: '2099-01-01T00:00:00Z' })
   })
 })
 

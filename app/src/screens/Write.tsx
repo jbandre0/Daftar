@@ -7,6 +7,9 @@ import { useEntrySession, useSessionState } from '../editor/useEntrySession'
 import { EMPTY_DOC, countWords, docToText, localDate, trackOf, type EntryContent } from '../lib/entries'
 import type { Track } from '../lib/organize'
 import { EntryMeta } from '../editor/EntryMeta'
+import { LetterPanel } from '../editor/LetterPanel'
+import { SealedCard } from '../components/Seal'
+import { isSealedNow, unlockInstant } from '../lib/seal'
 import { useOrganize } from '../organize'
 import { STATUS_TEXT } from '../lib/sync'
 import { writeState } from '../lib/account'
@@ -26,19 +29,20 @@ function formatDate(iso: string) {
 export function WriteToday({ fresh = false }: { fresh?: boolean }) {
   const { session } = useAuth()
   const navigate = useNavigate()
+  const letter = new URLSearchParams(useLocation().search).get('letter') === '1'
   useEffect(() => {
     if (!session) return
     let cancelled = false
     ;(async () => {
-      const existing = fresh ? null : await findTodaysEntry(session.user.id)
+      const existing = fresh || letter ? null : await findTodaysEntry(session.user.id)
       if (cancelled) return
       if (existing) navigate(`/write/${existing}`, { replace: true })
-      else navigate(`/write/${crypto.randomUUID()}`, { replace: true, state: { isNew: true } })
+      else navigate(`/write/${crypto.randomUUID()}`, { replace: true, state: { isNew: true, letter } })
     })()
     return () => {
       cancelled = true
     }
-  }, [session, fresh, navigate])
+  }, [session, fresh, letter, navigate])
   return <p className="sr-only" role="status">Opening today's page…</p>
 }
 
@@ -50,14 +54,16 @@ export function Write() {
   const userId = auth!.user.id
   const lang = profile?.default_language ?? 'en'
   const { tracks, templates, chapters } = useOrganize()
-  const defaultTrack = tracks[0]?.id ?? null
+  const asLetter = !!(location.state as { letter?: boolean } | null)?.letter
+  const lettersTrack = tracks.find((t) => t.slug === 'letters')?.id ?? null
+  const defaultTrack = asLetter && lettersTrack ? lettersTrack : (tracks[0]?.id ?? null)
 
   const blank = useCallback(
     (): EntryContent => ({
       id, entry_date: localDate(), title: '', body_rich: EMPTY_DOC, body_text: '', language: lang, word_count: 0,
-      track_id: defaultTrack, fields: {}, tag_ids: [],
+      track_id: defaultTrack, fields: {}, tag_ids: [], is_letter: asLetter, letter_to: null, sealed: false, unlock_at: null,
     }),
-    [id, lang, defaultTrack],
+    [id, lang, defaultTrack, asLetter],
   )
   const { session, error } = useEntrySession(id, userId, blank, isNew)
   useSessionState(session)
@@ -102,6 +108,23 @@ export function Write() {
     } else {
       session.change({ track_id: t.id })
     }
+    // the Letters track is the one that makes a page a letter (a sealed or addressed one stays a letter)
+    if (t.slug === 'letters') session.change({ is_letter: true })
+    else if (!c.sealed && !c.letter_to) session.change({ is_letter: false })
+  }
+
+  /** Seal the letter for a day. Returns a plain-words problem, or null when it worked. */
+  const sealLetter = async (day: string): Promise<string | null> => {
+    if (!session) return 'Something went wrong. Try again.'
+    if (!session.content.body_text.trim()) return 'Write something first.'
+    session.change({ is_letter: true, sealed: true, unlock_at: unlockInstant(day) })
+    await session.flush()
+    if (session.status === 'sealed') {
+      // the server refused the date: take the seal back off, the words are untouched
+      session.change({ sealed: false, unlock_at: null })
+      return "That day didn't work. Pick one that hasn't come yet."
+    }
+    return null
   }
 
   if (!UUID.test(id)) return <Navigate to="/write" replace />
@@ -109,6 +132,22 @@ export function Write() {
   if (!session) return <p className="sr-only" role="status">Opening…</p>
 
   const c = session.content
+
+  // A sealed letter whose day hasn't come: a wax seal, and nothing of what it says. The editor is never mounted.
+  if (isSealedNow(c)) {
+    return (
+      <div className="screen write">
+        <article className="page spread quiet sealed-page" aria-label="A sealed letter">
+          <SealedCard to={c.letter_to ?? null} until={c.unlock_at!} big note="Sealed means hidden until the day, not encrypted." />
+          <p className="quiet-note">It will open on its own, on the day.</p>
+          <p>
+            <Link className="btn btn-tint" to="/letters">Back to letters</Link>
+          </p>
+        </article>
+      </div>
+    )
+  }
+  const showLetter = !!c.is_letter || !!c.sealed || tracks.find((t) => t.id === trackOf(c))?.slug === 'letters'
   const chapterNames = chaptersFor(c.entry_date, chapters).map((x) => x.name)
   const trialLine =
     state === 'readonly'
@@ -143,6 +182,9 @@ export function Write() {
             onTags={(tag_ids) => session.change({ tag_ids })}
             onFields={(fields) => session.change({ fields })}
           />
+          {showLetter && (
+            <LetterPanel content={c} editable={editable} onTo={(letter_to) => session.change({ letter_to, is_letter: true })} onSeal={sealLetter} />
+          )}
           {chapterNames.length > 0 && <p className="meta chapter-line">{chapterNames.join(' · ')}</p>}
         </header>
         <p className="save-status" role="status" aria-live="polite">
@@ -150,6 +192,9 @@ export function Write() {
             ? "This entry isn't on this device yet. Connect to open it."
             : trialLine ?? STATUS_TEXT[session.status]}
           {session.note && <span className="save-note"> {session.note}</span>}
+          {session.status === 'sealed' && session.sealRejection === 'sealed' && (
+            <button type="button" className="btn btn-quiet" onClick={() => window.location.reload()}>Open it again</button>
+          )}
           {photoNotice && <span className="save-note photo-notice"> {photoNotice}</span>}
         </p>
         {!session.unavailable && (

@@ -8,6 +8,7 @@ import { preview } from './preview'
 import { syncDeps } from './syncDeps'
 import type { Draft } from './draftStore'
 import type { EntryContent } from './entries'
+import { isKnownSealed, isSealedNow, maskIfSealed } from './seal'
 
 export type BrowseFilters = {
   q: string
@@ -25,6 +26,9 @@ export type BrowseRow = {
   title: string | null
   /** null = a sealed letter whose date hasn't come: its words are never shown */
   snippet: string | null
+  /** set (with title and snippet null) for a sealed letter that hasn't opened: who it is for, and when */
+  letter_to?: string | null
+  sealed_until?: string | null
   word_count: number
   updated_at: string
   track_id: string | null
@@ -45,6 +49,8 @@ const norm = (s: string) => s.toLocaleLowerCase()
 
 /** Does this local copy match? Same spirit as the server: every word of the query, anywhere in title or text. */
 export function matchesFilters(c: EntryContent, f: BrowseFilters): boolean {
+  const sealed = isSealedNow(c) || isKnownSealed(c.id)
+  if (sealed && f.q.trim()) return false // a sealed letter is never found by its words
   if (f.track && (c.track_id ?? null) !== f.track) return false
   if (f.language && c.language !== f.language) return false
   if (f.from && c.entry_date < f.from) return false
@@ -69,9 +75,12 @@ export function makeSnippet(text: string, q: string): string {
 }
 
 export function rowFromContent(c: EntryContent, updatedAt: number, q: string, unsynced: boolean): BrowseRow {
+  const m = maskIfSealed({ ...c, title: c.title ?? '', body_text: c.body_text })
+  const hidden = m.sealed_until !== null
   return {
-    id: c.id, entry_date: c.entry_date, title: c.title || null, snippet: makeSnippet(c.body_text, q), word_count: c.word_count,
-    updated_at: new Date(updatedAt).toISOString(), track_id: c.track_id ?? null, language: c.language, tag_ids: c.tag_ids ?? [], unsynced,
+    id: c.id, entry_date: c.entry_date, title: hidden ? null : c.title || null, snippet: hidden ? null : makeSnippet(c.body_text, q),
+    word_count: c.word_count, updated_at: new Date(updatedAt).toISOString(), track_id: c.track_id ?? null, language: c.language,
+    tag_ids: c.tag_ids ?? [], unsynced, letter_to: m.letter_to, sealed_until: m.sealed_until,
   }
 }
 
@@ -90,6 +99,11 @@ export function overlayDrafts(rows: BrowseRow[], drafts: Draft[], f: BrowseFilte
       continue
     }
     if (!d.content.body_text.trim() && !d.content.title) continue
+    if (isKnownSealed(d.id) && !isSealedNow(d.content)) {
+      // this device learned the letter is sealed: a stale local draft of it must not appear in any list
+      byId.delete(d.id)
+      continue
+    }
     const row = rowFromContent(d.content, d.updatedAt, f.q, true)
     if (had) byId.set(d.id, row)
     else {
@@ -187,6 +201,9 @@ export async function fetchAllDates(userId: string): Promise<string[]> {
 }
 
 export type DayEntry = {
+  /** set for a sealed letter that hasn't opened: the page shows a wax seal, never its words */
+  sealed_until?: string | null
+  letter_to?: string | null
   id: string
   entry_date: string
   title: string
@@ -206,7 +223,7 @@ export async function fetchDay(userId: string, date: string): Promise<DayEntry[]
   else {
     const { data, error } = await supabase
       .from('entries')
-      .select('id, entry_date, title, body_rich, body_text, language, word_count, track_id, sealed, unlock_at, created_at')
+      .select('id, entry_date, title, body_rich, body_text, language, word_count, track_id, sealed, unlock_at, letter_to, created_at')
       .is('deleted_at', null)
       .eq('entry_date', date)
       .order('created_at')
@@ -214,9 +231,10 @@ export async function fetchDay(userId: string, date: string): Promise<DayEntry[]
       const ids = data.map((r) => r.id as string)
       const tags = await supabase.from('entry_tags').select('entry_id, tag_id').in('entry_id', ids).is('deleted_at', null)
       for (const r of data) {
-        const hidden = r.sealed && r.unlock_at && Date.parse(r.unlock_at as string) > Date.now()
+        const hidden = isSealedNow({ sealed: r.sealed as boolean, unlock_at: r.unlock_at as string | null }) || isKnownSealed(r.id as string)
         out.set(r.id as string, {
-          id: r.id as string, entry_date: date, title: (r.title as string) ?? '', language: r.language as string,
+          sealed_until: hidden ? (r.unlock_at as string | null) : null, letter_to: hidden ? (r.letter_to as string | null) : null,
+          id: r.id as string, entry_date: date, title: hidden ? '' : (r.title as string) ?? '', language: r.language as string,
           word_count: r.word_count as number, track_id: (r.track_id as string) ?? null,
           body_rich: hidden ? { type: 'doc', content: [] } : r.body_rich, body_text: hidden ? '' : (r.body_text as string),
           tag_ids: (tags.data ?? []).filter((t) => t.entry_id === r.id).map((t) => t.tag_id as string),
@@ -228,9 +246,13 @@ export async function fetchDay(userId: string, date: string): Promise<DayEntry[]
     if (d.userId !== userId || d.content.entry_date !== date || (!d.content.body_text.trim() && !d.content.title)) continue
     if (d.seq <= d.savedSeq && out.has(d.id)) continue // the server copy is as new
     const c = d.content
+    if (isKnownSealed(d.id) && !isSealedNow(c)) continue // a stale draft of a letter sealed elsewhere
+    const hidden = isSealedNow(c)
     out.set(d.id, {
-      id: d.id, entry_date: date, title: c.title, body_rich: c.body_rich, body_text: c.body_text, language: c.language,
-      word_count: c.word_count, track_id: c.track_id ?? null, tag_ids: c.tag_ids ?? [], unsynced: d.seq > d.savedSeq,
+      sealed_until: hidden ? (c.unlock_at ?? null) : null, letter_to: hidden ? (c.letter_to ?? null) : null,
+      id: d.id, entry_date: date, title: hidden ? '' : c.title, body_rich: hidden ? { type: 'doc', content: [] } : c.body_rich,
+      body_text: hidden ? '' : c.body_text, language: c.language, word_count: c.word_count, track_id: c.track_id ?? null,
+      tag_ids: c.tag_ids ?? [], unsynced: d.seq > d.savedSeq,
     })
   }
   return [...out.values()]

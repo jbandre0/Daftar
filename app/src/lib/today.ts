@@ -7,7 +7,7 @@ import { preview } from './preview'
 export async function findTodaysEntry(userId: string): Promise<string | null> {
   const today = localDate()
   const local = (await syncDeps.store.all())
-    .filter((d) => d.userId === userId && d.content.entry_date === today)
+    .filter((d) => d.userId === userId && d.content.entry_date === today && !d.content.is_letter && !d.content.sealed)
     .sort((a, b) => b.updatedAt - a.updatedAt)[0]
   try {
     if (preview.remoteToday) {
@@ -19,6 +19,7 @@ export async function findTodaysEntry(userId: string): Promise<string | null> {
       .from('entries')
       .select('id, updated_at')
       .eq('entry_date', today)
+      .eq('is_letter', false)
       .is('deleted_at', null)
       .order('updated_at', { ascending: false })
       .limit(1)
