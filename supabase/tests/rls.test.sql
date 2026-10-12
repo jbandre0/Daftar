@@ -111,6 +111,21 @@ select pg_temp.t('A cannot unlock themselves',          '^err:42501$', '00000000
 select pg_temp.t('A cannot extend own trial',           '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update licenses set trial_ends_at = now() + interval '10 years' where user_id = '00000000-0000-0000-0000-0000000000a1'$q$);
 select pg_temp.t('A cannot insert a licence',           '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into licenses (user_id, status) values ('00000000-0000-0000-0000-0000000000a1', 'unlocked')$q$);
 select pg_temp.t('A cannot delete a licence',           '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$delete from licenses$q$);
+select pg_temp.t('A cannot run the licence webhook function', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select apply_license_event('test', 'paid', 'rlstest-x', '00000000-0000-0000-0000-0000000000a1')$q$);
+select pg_temp.t('a signed-out visitor cannot run it either', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'anon', $q$select apply_license_event('test', 'paid', 'rlstest-x', '00000000-0000-0000-0000-0000000000a1')$q$);
+select pg_temp.t('A cannot read the licence event log',  '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select * from license_events$q$);
+do $$
+declare uid uuid := '00000000-0000-0000-0000-0000000000a1'; r text;
+begin
+  r := apply_license_event('test', 'paid', 'rlstest-1', uid);
+  perform pg_temp.check_('webhook: a paid order unlocks',          r = 'unlocked' and (select status from licenses where user_id = uid) = 'unlocked');
+  perform pg_temp.check_('webhook: replaying it does nothing',     apply_license_event('test', 'paid', 'rlstest-1', uid) = 'duplicate');
+  r := apply_license_event('test', 'refunded', 'rlstest-1', null);
+  perform pg_temp.check_('webhook: a refund makes it read-only',   r = 'refunded' and (select status from licenses where user_id = uid) = 'refunded');
+  perform pg_temp.check_('webhook: replaying the refund does nothing', apply_license_event('test', 'refunded', 'rlstest-1', null) = 'duplicate');
+  update licenses set status = 'trial', unlocked_at = null, provider = null, provider_order_id = null where user_id = uid;
+  delete from license_events where provider = 'test';
+end $$;
 select pg_temp.t('A can rename own profile',            '^ok:1$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update profiles set display_name = 'Ada' where id = '00000000-0000-0000-0000-0000000000a1'$q$);
 select pg_temp.t('A cannot edit storage_bytes_used',    '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update profiles set storage_bytes_used = 0 where id = '00000000-0000-0000-0000-0000000000a1'$q$);
 

@@ -5,6 +5,15 @@
 -- Prompts stay global and read-only for clients (no insert/update/delete grant); content is loaded by
 -- pasting the generated prompts.sql into the SQL Editor (see supabase/README.md).
 
+-- Tidy any rows that already exist so the new rules can't fail on them (this migration is safe on a table that has data):
+--   * time_of_day: "Morning " -> morning; anything that isn't one of the four ("any", "anytime", "dawn", ...) -> null, meaning "fits any time"
+--   * the same words stored twice: the oldest copy stays
+update prompts set time_of_day = nullif(lower(btrim(time_of_day)), '') where time_of_day is not null;
+update prompts set time_of_day = null where time_of_day is not null and time_of_day not in ('morning', 'afternoon', 'evening', 'night');
+delete from prompts p using prompts q
+ where p.language = q.language and md5(p.text) = md5(q.text)
+   and (p.created_at, p.id) > (q.created_at, q.id);
+
 create unique index prompts_unique_text on prompts (language, (md5(text)));
 
 alter table prompts

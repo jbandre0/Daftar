@@ -14,6 +14,7 @@ import { useOrganize } from '../organize'
 import { STATUS_TEXT } from '../lib/sync'
 import { writeState } from '../lib/account'
 import { findTodaysEntry } from '../lib/today'
+import { pageNotice } from '../lib/licence'
 import { photoQueue } from '../lib/photoRuntime'
 import type { PromptHandoff } from '../components/PromptDie'
 
@@ -156,12 +157,7 @@ export function Write() {
   }
   const showLetter = !!c.is_letter || !!c.sealed || tracks.find((t) => t.id === trackOf(c))?.slug === 'letters'
   const chapterNames = chaptersFor(c.entry_date, chapters).map((x) => x.name)
-  const trialLine =
-    state === 'readonly'
-      ? 'Your trial has ended. You can still read and export everything. Unlock Daftar for $49, once, to keep writing.'
-      : state === 'grace' && session.status === 'idle'
-        ? 'Your trial has ended, so new entries are paused. You can still finish anything already started, and read and export everything.'
-        : null
+  const trialLine = pageNotice(license, Date.now(), session.status !== 'idle')
 
   return (
     <div className="screen write">
@@ -201,6 +197,7 @@ export function Write() {
           {session.unavailable
             ? "This entry isn't on this device yet. Connect to open it."
             : trialLine ?? STATUS_TEXT[session.status]}
+          {trialLine && state !== 'unlocked' && <Link className="btn btn-quiet" to="/unlock">Unlock</Link>}
           {session.note && <span className="save-note"> {session.note}</span>}
           {session.status === 'sealed' && session.sealRejection === 'sealed' && (
             <button type="button" className="btn btn-quiet" onClick={() => window.location.reload()}>Open it again</button>

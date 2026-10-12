@@ -4,6 +4,6 @@ export default defineConfig({
   test: {
     environment: 'node',
     setupFiles: ['fake-indexeddb/auto'],
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', '../supabase/functions/**/*.test.ts'],
   },
 })

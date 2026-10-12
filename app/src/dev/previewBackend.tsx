@@ -17,6 +17,7 @@ import { sameContent } from '../lib/sync'
 import { matchesFilters, rowFromContent, PAGE_SIZE, type BrowseFilters, type BrowseRow, type DayEntry } from '../lib/browse'
 import type { Organize } from '../lib/organize'
 import type { AuthState } from '../auth'
+import type { License } from '../lib/account'
 import { README, FORMAT, SCHEMA_VERSION, APP_VERSION } from '../lib/vault'
 import { createStore, get as idbGet, set as idbSet } from 'idb-keyval'
 import { PhotoRetry, PhotoRejected, photoPath, type PhotoBackend } from '../lib/photoQueue'
@@ -301,6 +302,23 @@ async function seedPhotos() {
 
 // ---- the badge -------------------------------------------------------------------------------------------------
 
+// Dev only: pick a licence state in the badge (or open /?preview=1&licence=ended). Stored in localStorage; the page reloads.
+const LICENCE_KEY = 'daftar.preview.licence'
+const LICENCES = ['trial', 'soon', 'grace', 'ended', 'unlocked', 'refunded'] as const
+function previewLicense(): License {
+  const q = new URLSearchParams(location.search).get('licence')
+  if (q && (LICENCES as readonly string[]).includes(q)) localStorage.setItem(LICENCE_KEY, q)
+  const which = localStorage.getItem(LICENCE_KEY) ?? 'trial'
+  const day = 86_400_000
+  const ends = { trial: 12, soon: 3, grace: -1, ended: -5, unlocked: -30, refunded: 8 }[which as (typeof LICENCES)[number]] ?? 12
+  return {
+    user_id: 'preview-user', trial_started_at: new Date(Date.now() - 9 * day).toISOString(),
+    trial_ends_at: new Date(Date.now() + ends * day).toISOString(),
+    status: which === 'unlocked' ? 'unlocked' : which === 'refunded' ? 'refunded' : 'trial',
+    unlocked_at: which === 'unlocked' ? new Date().toISOString() : null,
+  }
+}
+
 function Badge() {
   const [offline, setOffline] = useState(isOffline())
   return (
@@ -316,6 +334,16 @@ function Badge() {
       >
         {offline ? 'Offline' : 'Online'}
       </button>
+      <select
+        aria-label="Licence state"
+        value={localStorage.getItem(LICENCE_KEY) ?? 'trial'}
+        onChange={(e) => {
+          localStorage.setItem(LICENCE_KEY, e.target.value)
+          location.reload()
+        }}
+      >
+        {LICENCES.map((l) => <option key={l} value={l}>{l}</option>)}
+      </select>
       <button
         onClick={() => {
           localStorage.removeItem(SERVER)
@@ -349,10 +377,7 @@ export async function maybeInstallPreview() {
       storage_bytes_used: Number(new URLSearchParams(location.search).get('used') ?? 184_233_000),
       created_at: new Date(Date.now() - 9 * 86_400_000).toISOString(),
     },
-    license: {
-      user_id: 'preview-user', trial_started_at: new Date(Date.now() - 9 * 86_400_000).toISOString(),
-      trial_ends_at: new Date(Date.now() + 12 * 86_400_000).toISOString(), status: 'trial', unlocked_at: null,
-    },
+    license: previewLicense(),
     refresh: async () => {},
     signOut: async () => {
       sessionStorage.removeItem(FLAG)
@@ -367,6 +392,10 @@ export async function maybeInstallPreview() {
     auth,
     organize,
     Badge,
+    checkout: () => {
+      localStorage.setItem(LICENCE_KEY, 'unlocked')
+      location.assign('/unlock?paid=1')
+    },
     prompts: async (): Promise<PromptRow[]> => validateSeed(seedFile).prompts.map((p, i) => ({ ...p, id: `preview-prompt-${i}` })),
     recent: async (limit: number) =>
       allRows().map(summary).sort((a, b) => (b.entry_date + b.updated_at).localeCompare(a.entry_date + a.updated_at)).slice(0, limit),

@@ -1,7 +1,9 @@
 import { Screen } from '../components/Screen'
 import { useTheme } from '../theme'
 import { useAuth } from '../auth'
-import { trialDaysLeft, writeState } from '../lib/account'
+import { settingsLine } from '../lib/licence'
+import { writeState } from '../lib/account'
+import { Link } from 'react-router-dom'
 import { LanguageCard, TagsCard, TracksCard } from '../components/OrganizeSettings'
 
 const TOKENS = [
@@ -23,15 +25,10 @@ export function Settings() {
             {session?.user.email}
           </p>
           {license && (
-            <p style={{ marginBlockStart: 'var(--sp-2)' }}>
-              {state === 'trial' && `Your trial ends in ${trialDaysLeft(license)} days. Everything you've written stays yours either way.`}
-              {state === 'grace' && 'Your trial has just ended. Edits to existing entries still save for a little while.'}
-              {state === 'readonly' && "Your trial has ended. You can still read and export everything."}
-              {state === 'unlocked' && 'Daftar is yours.'}
-              {state === 'unknown' && ''}
-            </p>
+            <p style={{ marginBlockStart: 'var(--sp-2)' }}>{settingsLine(license)}</p>
           )}
           <div className="row" style={{ marginBlockStart: 'var(--sp-4)' }}>
+            {state !== 'unlocked' && state !== 'unknown' && <Link className="btn btn-tint" to="/unlock">Unlock Daftar</Link>}
             <button className="btn btn-quiet" onClick={() => void signOut()}>
               Sign out
             </button>

@@ -25,6 +25,7 @@ export const preview: {
   photos?: PhotoBackend & MediaApi
   letters?: () => Promise<LetterRow[]>
   prompts?: () => Promise<PromptRow[]>
+  checkout?: () => void
   browse?: (f: BrowseFilters, offset: number) => Promise<{ rows: BrowseRow[]; total: number }>
   monthDays?: (start: string, end: string) => Promise<Record<string, number>>
   allDates?: () => Promise<string[]>

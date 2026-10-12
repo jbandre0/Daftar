@@ -74,3 +74,27 @@ describe('who can touch the table', () => {
     })
   }
 })
+
+describe('migration 0009 on a table that already has prompts (what a real project can look like)', () => {
+  it('cleans odd times and duplicates instead of failing', async () => {
+    const old = new PGlite({ extensions: { pg_trgm } })
+    await old.exec(readFileSync(join(ROOT, 'tests/shim.sql'), 'utf8'))
+    for (const f of readdirSync(join(ROOT, 'migrations')).sort().filter((f) => f < '0009')) await old.exec(readFileSync(join(ROOT, 'migrations', f), 'utf8'))
+    await old.exec(`insert into prompts (text, depth, time_of_day, created_at) values
+      ('Odd one', 'light', 'anytime', now() - interval '3 days'),
+      ('Shouty', 'light', ' Evening ', now()),
+      ('Fine', 'deep', 'night', now()),
+      ('Empty', 'light', '', now()),
+      ('Twice', 'light', null, now() - interval '2 days'),
+      ('Twice', 'deep', 'morning', now())`)
+    await old.exec(readFileSync(join(ROOT, 'migrations', '0009_prompts.sql'), 'utf8'))
+    const rows = (await old.query<{ text: string; depth: string; time_of_day: string | null }>('select text, depth, time_of_day from prompts order by text')).rows
+    expect(rows).toEqual([
+      { text: 'Empty', depth: 'light', time_of_day: null },
+      { text: 'Fine', depth: 'deep', time_of_day: 'night' },
+      { text: 'Odd one', depth: 'light', time_of_day: null },
+      { text: 'Shouty', depth: 'light', time_of_day: 'evening' },
+      { text: 'Twice', depth: 'light', time_of_day: null }, // the oldest copy stays
+    ])
+  })
+})

@@ -584,3 +584,4 @@ a.sealed-card:hover { background: var(--tint); }
 .die-filters .select { inline-size: auto; min-height: 40px; padding: 0 var(--sp-3); font-size: var(--fs-15); }
 .die-card .die-note { color: var(--ash-soft); font-size: var(--fs-13); }
 .page-prompt { margin: 0 0 var(--sp-3); padding-inline-start: var(--sp-3); border-inline-start: 2px solid var(--flame); font-family: var(--font-serif); font-style: italic; font-size: var(--fs-17); line-height: 1.5; color: var(--ink-soft); }
+.preview-badge select { background: var(--tint-strong); color: var(--ash); border: 0; border-radius: 999px; padding: 4px 8px; font-size: 0.7rem; }

@@ -10,6 +10,7 @@ import { Read } from './screens/Read'
 import { Chapters, ChapterDetail } from './screens/Chapters'
 import { Letters } from './screens/Letters'
 import { Vault } from './screens/Vault'
+import { Unlock } from './screens/Unlock'
 import { Settings } from './screens/Settings'
 
 export function App() {
@@ -29,6 +30,7 @@ export function App() {
           <Route path="chapters/:id" element={<ChapterDetail />} />
           <Route path="letters" element={<Letters />} />
           <Route path="vault" element={<Vault />} />
+          <Route path="unlock" element={<Unlock />} />
           <Route path="settings" element={<Settings />} />
         </Route>
         </Route>

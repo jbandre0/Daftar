@@ -4,6 +4,7 @@ import { useAuth } from '../auth'
 import { EntryList } from '../components/EntryList'
 import { PromptDie } from '../components/PromptDie'
 import { localDate, recentEntries, summaryFromContent, type EntrySummary } from '../lib/entries'
+import { deskNotice } from '../lib/licence'
 import { syncDeps } from '../lib/syncDeps'
 import { dismissNudge, shouldNudge, sinceText } from '../lib/vaultRemote'
 
@@ -16,7 +17,7 @@ const todayLong = () =>
   new Intl.DateTimeFormat('en', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
 
 export function Desk() {
-  const { session, profile } = useAuth()
+  const { session, profile, license } = useAuth()
   const userId = session!.user.id
   const [entries, setEntries] = useState<EntrySummary[] | null>(null)
   const [dismissed, setDismissed] = useState(false)
@@ -52,6 +53,7 @@ export function Desk() {
 
   const today = localDate()
   const hasToday = entries?.some((e) => e.entry_date === today && !e.is_letter && !e.sealed_until)
+  const notice = deskNotice(license)
   const name = profile?.display_name ? `, ${profile.display_name}` : ''
 
   return (
@@ -75,6 +77,13 @@ export function Desk() {
           </Link>
         </div>
       </div>
+
+      {notice && (
+        <p className="nudge" role="status">
+          <span>{notice.text}</span>
+          {notice.offerUnlock && <Link className="btn btn-tint" to="/unlock">Unlock</Link>}
+        </p>
+      )}
 
       <PromptDie />
 
