@@ -27,7 +27,7 @@ export function Onboarding() {
     setError('')
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: window.location.origin + '/welcome' },
+      options: { emailRedirectTo: window.location.origin + import.meta.env.BASE_URL + 'welcome' },
     })
     setBusy(false)
     if (error) setError("Couldn't send that. Check the address and try again.")

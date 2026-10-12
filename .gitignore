@@ -4,3 +4,7 @@ dist
 *.local
 
 supabase/seed/prompts.sql
+
+# The product spec stays on this computer (the repo is public)
+*.pdf
+docs/

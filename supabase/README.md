@@ -1,6 +1,6 @@
 # Supabase setup (Phase 1)
 
-Project: `mcsbybmttzoiynnwexbw`
+Project: (see `app/.env.local`; the project URL is not kept in this public repo)
 
 ## 1. Apply the schema (once)
 Supabase dashboard → **SQL Editor** → New query → paste all of `migrations/0001_init.sql` → **Run**.

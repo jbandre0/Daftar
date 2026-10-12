@@ -25,7 +25,7 @@ async function boot() {
     <StrictMode>
       <ThemeProvider>
         <AuthProvider>
-          <BrowserRouter>
+          <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
             <App />
           </BrowserRouter>
         </AuthProvider>
