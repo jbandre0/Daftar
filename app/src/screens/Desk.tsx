@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { EntryList } from '../components/EntryList'
+import { PromptDie } from '../components/PromptDie'
 import { localDate, recentEntries, summaryFromContent, type EntrySummary } from '../lib/entries'
 import { syncDeps } from '../lib/syncDeps'
 import { dismissNudge, shouldNudge, sinceText } from '../lib/vaultRemote'
@@ -74,6 +75,8 @@ export function Desk() {
           </Link>
         </div>
       </div>
+
+      <PromptDie />
 
       {entries && entries.length > 0 && (
         <section aria-labelledby="recent-h">

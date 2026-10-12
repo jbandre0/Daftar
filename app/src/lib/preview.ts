@@ -7,6 +7,7 @@ import type { Rpc } from './vault'
 import type { PhotoBackend } from './photoQueue'
 import type { LetterRow } from './letters'
 import type { MediaApi } from './photoRuntime'
+import type { PromptRow } from './prompts'
 
 /**
  * Dev-only preview mode (see src/dev/previewBackend.ts, loaded only when `import.meta.env.DEV`).
@@ -23,6 +24,7 @@ export const preview: {
   rpc?: Rpc
   photos?: PhotoBackend & MediaApi
   letters?: () => Promise<LetterRow[]>
+  prompts?: () => Promise<PromptRow[]>
   browse?: (f: BrowseFilters, offset: number) => Promise<{ rows: BrowseRow[]; total: number }>
   monthDays?: (start: string, end: string) => Promise<Record<string, number>>
   allDates?: () => Promise<string[]>

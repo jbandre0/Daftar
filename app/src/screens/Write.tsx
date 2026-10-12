@@ -15,6 +15,7 @@ import { STATUS_TEXT } from '../lib/sync'
 import { writeState } from '../lib/account'
 import { findTodaysEntry } from '../lib/today'
 import { photoQueue } from '../lib/photoRuntime'
+import type { PromptHandoff } from '../components/PromptDie'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -29,7 +30,9 @@ function formatDate(iso: string) {
 export function WriteToday({ fresh = false }: { fresh?: boolean }) {
   const { session } = useAuth()
   const navigate = useNavigate()
-  const letter = new URLSearchParams(useLocation().search).get('letter') === '1'
+  const location = useLocation()
+  const letter = new URLSearchParams(location.search).get('letter') === '1'
+  const prompt = (location.state as { prompt?: PromptHandoff } | null)?.prompt ?? null
   useEffect(() => {
     if (!session) return
     let cancelled = false
@@ -37,12 +40,12 @@ export function WriteToday({ fresh = false }: { fresh?: boolean }) {
       const existing = fresh || letter ? null : await findTodaysEntry(session.user.id)
       if (cancelled) return
       if (existing) navigate(`/write/${existing}`, { replace: true })
-      else navigate(`/write/${crypto.randomUUID()}`, { replace: true, state: { isNew: true, letter } })
+      else navigate(`/write/${crypto.randomUUID()}`, { replace: true, state: { isNew: true, letter, prompt } })
     })()
     return () => {
       cancelled = true
     }
-  }, [session, fresh, letter, navigate])
+  }, [session, fresh, letter, prompt, navigate])
   return <p className="sr-only" role="status">Opening today's page…</p>
 }
 
@@ -54,16 +57,20 @@ export function Write() {
   const userId = auth!.user.id
   const lang = profile?.default_language ?? 'en'
   const { tracks, templates, chapters } = useOrganize()
-  const asLetter = !!(location.state as { letter?: boolean } | null)?.letter
+  const handoff = (location.state as { prompt?: PromptHandoff | null } | null)?.prompt ?? null
+  const asLetter = !!(location.state as { letter?: boolean } | null)?.letter || handoff?.track_hint === 'letters'
   const lettersTrack = tracks.find((t) => t.slug === 'letters')?.id ?? null
-  const defaultTrack = asLetter && lettersTrack ? lettersTrack : (tracks[0]?.id ?? null)
+  // a prompt that suggests a track starts the page there (a prompt for a letter, a prayer, a dream)
+  const hintedTrack = handoff?.track_hint ? tracks.find((t) => t.slug === handoff.track_hint)?.id ?? null : null
+  const defaultTrack = hintedTrack ?? (asLetter && lettersTrack ? lettersTrack : (tracks[0]?.id ?? null))
+  const promptText = handoff?.text ?? null
 
   const blank = useCallback(
     (): EntryContent => ({
       id, entry_date: localDate(), title: '', body_rich: EMPTY_DOC, body_text: '', language: lang, word_count: 0,
-      track_id: defaultTrack, fields: {}, tag_ids: [], is_letter: asLetter, letter_to: null, sealed: false, unlock_at: null,
+      track_id: defaultTrack, fields: promptText ? { prompt: promptText } : {}, tag_ids: [], is_letter: asLetter, letter_to: null, sealed: false, unlock_at: null,
     }),
-    [id, lang, defaultTrack, asLetter],
+    [id, lang, defaultTrack, asLetter, promptText],
   )
   const { session, error } = useEntrySession(id, userId, blank, isNew)
   useSessionState(session)
@@ -187,6 +194,9 @@ export function Write() {
           )}
           {chapterNames.length > 0 && <p className="meta chapter-line">{chapterNames.join(' · ')}</p>}
         </header>
+        {typeof c.fields?.prompt === 'string' && c.fields.prompt && (
+          <p className="page-prompt" dir="auto">{c.fields.prompt}</p>
+        )}
         <p className="save-status" role="status" aria-live="polite">
           {session.unavailable
             ? "This entry isn't on this device yet. Connect to open it."

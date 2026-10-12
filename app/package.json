@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "db:test": "node scripts/db-test.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prompts:sql": "node scripts/prompts-to-sql.mjs"
   },
   "dependencies": {
     "@jsquash/webp": "^1.5.0",

@@ -84,8 +84,26 @@ select pg_temp.t('A cannot hard-delete own entry',      '^err:42501$', '00000000
 select pg_temp.t('A can soft-delete own entry',         '^ok:1$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update entries set deleted_at = now() where id = '00000000-0000-0000-0000-00000000aaa1'$q$);
 select pg_temp.t('A can undo the soft delete',          '^ok:1$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update entries set deleted_at = null where id = '00000000-0000-0000-0000-00000000aaa1'$q$);
 select pg_temp.t('signed-out visitor cannot read entries', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'anon', $q$select * from entries$q$);
-select pg_temp.t('signed-out visitor can read prompts', '^ok:1$',  '00000000-0000-0000-0000-0000000000a1', 'anon', $q$select * from prompts$q$);
+select pg_temp.t('signed-out visitor can read prompts', '^ok:[1-9]', '00000000-0000-0000-0000-0000000000a1', 'anon', $q$select * from prompts$q$);
 select pg_temp.t('A cannot write prompts',              '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$insert into prompts (text, depth) values ('x', 'light')$q$);
+select pg_temp.t('A cannot change prompts',             '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$update prompts set text = 'changed'$q$);
+select pg_temp.t('A cannot delete prompts',             '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$delete from prompts$q$);
+select pg_temp.t('a signed-out visitor cannot write prompts', '^err:42501$', '00000000-0000-0000-0000-0000000000a1', 'anon', $q$insert into prompts (text, depth) values ('x', 'light')$q$);
+do $$
+begin
+  begin
+    insert into prompts (text, depth) values ('Test prompt', 'light');
+    perform pg_temp.check_('prompts: the same words cannot be stored twice', false, 'duplicate was accepted');
+  exception when unique_violation then
+    perform pg_temp.check_('prompts: the same words cannot be stored twice', true);
+  end;
+  begin
+    insert into prompts (text, depth, time_of_day) values ('Test prompt, bad time', 'light', 'noon');
+    perform pg_temp.check_('prompts: time_of_day must be morning/afternoon/evening/night', false, 'noon was accepted');
+  exception when check_violation then
+    perform pg_temp.check_('prompts: time_of_day must be morning/afternoon/evening/night', true);
+  end;
+end $$;
 
 -- ---- 4. Licences cannot be written from the client ------------------------------------------------
 select pg_temp.t('A reads own licence',                 '^ok:1$',  '00000000-0000-0000-0000-0000000000a1', 'authenticated', $q$select * from licenses$q$);

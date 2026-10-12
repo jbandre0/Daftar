@@ -22,6 +22,10 @@ import { createStore, get as idbGet, set as idbSet } from 'idb-keyval'
 import { PhotoRetry, PhotoRejected, photoPath, type PhotoBackend } from '../lib/photoQueue'
 import type { MediaApi, MediaRow } from '../lib/photoRuntime'
 import { sha256Hex } from '../lib/photos'
+import type { PromptRow } from '../lib/prompts'
+import { validateSeed } from '../lib/promptSeed'
+// The real seed file, so the die in preview shows whatever is in supabase/seed/prompts.json right now.
+import seedFile from '../../../supabase/seed/prompts.json'
 
 const SERVER = 'daftar.preview.server'
 const OFFLINE = 'daftar.preview.offline'
@@ -363,6 +367,7 @@ export async function maybeInstallPreview() {
     auth,
     organize,
     Badge,
+    prompts: async (): Promise<PromptRow[]> => validateSeed(seedFile).prompts.map((p, i) => ({ ...p, id: `preview-prompt-${i}` })),
     recent: async (limit: number) =>
       allRows().map(summary).sort((a, b) => (b.entry_date + b.updated_at).localeCompare(a.entry_date + a.updated_at)).slice(0, limit),
     range: async (start: string, end: string | null) =>

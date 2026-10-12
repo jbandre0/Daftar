@@ -566,3 +566,21 @@ a.sealed-card:hover { background: var(--tint); }
 /* Buttons that sit on the glass page use the page's ink, not the desk's cream */
 .page .btn:not(.btn-primary) { color: var(--ink); }
 .page .btn-tint { --fill: rgba(42, 31, 22, 0.12); }
+
+/* ---------------------------------------------------------------------------------------------------------
+ * The die (phase 8): brass line art, a 150 ms tilt per roll, still under reduced motion
+ * ------------------------------------------------------------------------------------------------------ */
+.die-card { display: grid; gap: var(--sp-4); margin-block-end: var(--sp-6); }
+.die-top { display: flex; gap: var(--sp-4); align-items: flex-start; }
+.die-mark { flex: none; color: var(--flame-text); line-height: 0; padding-block-start: var(--sp-1); }
+.brass-die { transform-origin: 50% 60%; }
+.brass-die.rolled { animation: die-tilt 150ms ease-out; }
+@keyframes die-tilt { 0% { transform: rotate(0) scale(1); } 50% { transform: rotate(-16deg) scale(1.08); } 100% { transform: rotate(0) scale(1); } }
+.die-body { min-inline-size: 0; }
+.die-card .die-body h2 { margin-block-end: var(--sp-2); font-size: var(--fs-19); }
+.die-card .die-prompt { font-family: var(--font-serif); font-size: var(--fs-19); line-height: 1.5; color: var(--ash); }
+.die-card .die-prompt-empty { font-size: var(--fs-15); color: var(--ash-soft); }
+.die-filters { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.die-filters .select { inline-size: auto; min-height: 40px; padding: 0 var(--sp-3); font-size: var(--fs-15); }
+.die-card .die-note { color: var(--ash-soft); font-size: var(--fs-13); }
+.page-prompt { margin: 0 0 var(--sp-3); padding-inline-start: var(--sp-3); border-inline-start: 2px solid var(--flame); font-family: var(--font-serif); font-style: italic; font-size: var(--fs-17); line-height: 1.5; color: var(--ink-soft); }

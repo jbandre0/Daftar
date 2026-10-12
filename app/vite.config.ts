@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  // dev only: preview mode reads the prompt seed file that lives next to the migrations
+  server: { fs: { allow: ['..'] } },
   plugins: [
     react(),
     VitePWA({

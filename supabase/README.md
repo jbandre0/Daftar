@@ -20,6 +20,13 @@ Run each new file in `migrations/` once, in order, then re-run `tests/rls.test.s
 - `0006_browse.sql` (phase 5: browse_entries search and filters, entry_dates)
 - `0007_photos.sql` (phase 6: register_media, the server-side 2 GB cap, photo list in the export)
 - `0008_letters.sql` (phase 7: the seal guard, masked browse and list_letters)
+- `0009_prompts.sql` (phase 8: one prompt per text, time-of-day check; then load prompts, below)
+
+## Loading prompts
+Prompts live in `seed/prompts.json` (the file shipped is a small sample; replace it with yours).
+1. `cd app && npm run prompts:sql` checks the file and tells you plainly what to fix, then writes `seed/prompts.sql`.
+2. Paste `seed/prompts.sql` into the SQL Editor → **Run**. Safe to run again: prompts are matched by their exact text, so tags (depth, mood, time, track) update in place and new prompts are added. Nothing is ever deleted; to remove a prompt, delete its row in Table Editor → `prompts`.
+No keys involved. Fields: `text`, `depth` (light / medium / deep, required), and optional `mood` (calm, heavy, restless, grateful, hopeful, curious), `time_of_day` (morning, afternoon, evening, night), `track_hint` (daily, spiritual, letters, dreams). Leave an optional field out and the prompt fits any.
 
 ## 3. Auth settings
 - **Authentication → URL Configuration**
