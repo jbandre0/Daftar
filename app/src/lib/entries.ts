@@ -58,6 +58,15 @@ export function localDate(d = new Date()): string {
   return `${y}-${m}-${day}`
 }
 
+/** A usable entry date: a real YYYY-MM-DD that is not in the future. null otherwise. */
+export function parseEntryDate(s: string | null | undefined, today = localDate()): string | null {
+  if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null
+  const [y, m, d] = s.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null
+  return s <= today ? s : null
+}
+
 export function countWords(text: string): number {
   const t = text.trim()
   return t ? t.split(/\s+/u).length : 0

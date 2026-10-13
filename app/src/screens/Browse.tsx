@@ -296,6 +296,7 @@ export function Browse() {
             List
           </button>
         </div>
+        <Link className="btn btn-tint" to="/write/new?past=1">Add a past entry</Link>
         <button className="btn btn-tint" aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)}>
           Filters{activeFilterCount(filters) ? ` · ${activeFilterCount(filters)}` : ''}
         </button>
@@ -372,6 +373,7 @@ export function Browse() {
               <div className="row day-head">
                 <h2 id="day-h" className="section-label">{dayLabel}</h2>
                 {dayRows.length > 0 && <Link className="btn btn-tint" to={`/read?date=${day}`}>Read this day</Link>}
+                {day <= localDate() && <Link className="btn btn-tint" to={`/write/new?date=${day}`}>{day === localDate() ? 'Write another' : 'Write for this day'}</Link>}
               </div>
               <Results rows={dayRows} q="" empty={<p className="empty">Nothing written this day. The page is blank. That's allowed.</p>} />
             </section>

@@ -75,6 +75,9 @@ export function Desk() {
           <Link className="btn btn-tint" to="/chapters">
             Chapters
           </Link>
+          <Link className="btn btn-quiet" to="/write/new?past=1">
+            Add a past entry
+          </Link>
         </div>
       </div>
 

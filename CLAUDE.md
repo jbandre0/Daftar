@@ -119,6 +119,10 @@ App lives in `app/`: Vite + React + TypeScript, vite-plugin-pwa, react-router, P
 - **Preview:** badge select for licence state (trial/soon/grace/ended/unlocked/refunded, or `?licence=ended`); Unlock simulates the purchase.
 - `VITE_CHECKOUT_URL` (https only) in `app/.env.local`; unset = "Checkout isn't switched on here yet."
 
+## Past entries (no JSON needed)
+- A page's date is editable: "Change date" under the date on the Write screen opens a date input (max = today; `parseEntryDate` refuses the future and impossible days) and `session.change({ entry_date })` rides through `save_entry()` like any edit. Entry points: Browse "Add a past entry" and Desk "Add a past entry" (`/write/new?past=1`: yesterday, picker open), Browse calendar day panel "Write for this day" (`/write/new?date=YYYY-MM-DD`). `WriteToday` forwards `date`/`pickDate` in location state; `Write`'s `blank()` uses it.
+- Preview mode's Browse does not overlay local drafts (real mode does, via `overlayDrafts`); an entry only reaches the simulated server once its page has been open for a couple of seconds.
+
 ## Hosting (GitHub Pages, personal use; swap for a real host before selling)
 - `.github/workflows/pages.yml` runs tests, builds `app/` and deploys on push to main. Repo secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`; optional repo variables `PAGES_BASE` (override the base path; `/` for a custom domain) and `VITE_CHECKOUT_URL`. Pages needs Settings -> Pages -> Source: GitHub Actions.
 - The app is served from `VITE_BASE` (default `/`; the workflow uses `/<repo>/`). Vite prefixes the base on index.html, CSS urls and the manifest; the router uses `basename`, the PWA scope/start_url/navigateFallback follow it, and the sign-in link uses `BASE_URL`. **Never write a root-absolute path ("/foo") in TS/TSX code; build it from `import.meta.env.BASE_URL`.**

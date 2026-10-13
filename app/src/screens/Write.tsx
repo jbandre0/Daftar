@@ -4,7 +4,7 @@ import { useAuth } from '../auth'
 import { chaptersFor } from '../lib/organize'
 import { Editor } from '../editor/Editor'
 import { useEntrySession, useSessionState } from '../editor/useEntrySession'
-import { EMPTY_DOC, countWords, docToText, localDate, trackOf, type EntryContent } from '../lib/entries'
+import { EMPTY_DOC, countWords, docToText, localDate, parseEntryDate, trackOf, type EntryContent } from '../lib/entries'
 import type { Track } from '../lib/organize'
 import { EntryMeta } from '../editor/EntryMeta'
 import { LetterPanel } from '../editor/LetterPanel'
@@ -34,6 +34,10 @@ export function WriteToday({ fresh = false }: { fresh?: boolean }) {
   const location = useLocation()
   const letter = new URLSearchParams(location.search).get('letter') === '1'
   const prompt = (location.state as { prompt?: PromptHandoff } | null)?.prompt ?? null
+  const qs = new URLSearchParams(location.search)
+  // /write/new?date=2024-03-05 starts a page for that day; ?past=1 starts one for yesterday with the date picker open
+  const date = fresh ? parseEntryDate(qs.get('date')) : null
+  const past = fresh && qs.get('past') === '1'
   useEffect(() => {
     if (!session) return
     let cancelled = false
@@ -41,12 +45,12 @@ export function WriteToday({ fresh = false }: { fresh?: boolean }) {
       const existing = fresh || letter ? null : await findTodaysEntry(session.user.id)
       if (cancelled) return
       if (existing) navigate(`/write/${existing}`, { replace: true })
-      else navigate(`/write/${crypto.randomUUID()}`, { replace: true, state: { isNew: true, letter, prompt } })
+      else navigate(`/write/${crypto.randomUUID()}`, { replace: true, state: { isNew: true, letter, prompt, date, pickDate: past } })
     })()
     return () => {
       cancelled = true
     }
-  }, [session, fresh, letter, prompt, navigate])
+  }, [session, fresh, letter, prompt, date, past, navigate])
   return <p className="sr-only" role="status">Opening today's page…</p>
 }
 
@@ -65,13 +69,16 @@ export function Write() {
   const hintedTrack = handoff?.track_hint ? tracks.find((t) => t.slug === handoff.track_hint)?.id ?? null : null
   const defaultTrack = hintedTrack ?? (asLetter && lettersTrack ? lettersTrack : (tracks[0]?.id ?? null))
   const promptText = handoff?.text ?? null
+  const startState = location.state as { date?: string | null; pickDate?: boolean } | null
+  const yesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); return localDate(d) }
+  const startDate = parseEntryDate(startState?.date) ?? (startState?.pickDate ? yesterday() : localDate())
 
   const blank = useCallback(
     (): EntryContent => ({
-      id, entry_date: localDate(), title: '', body_rich: EMPTY_DOC, body_text: '', language: lang, word_count: 0,
+      id, entry_date: startDate, title: '', body_rich: EMPTY_DOC, body_text: '', language: lang, word_count: 0,
       track_id: defaultTrack, fields: promptText ? { prompt: promptText } : {}, tag_ids: [], is_letter: asLetter, letter_to: null, sealed: false, unlock_at: null,
     }),
-    [id, lang, defaultTrack, asLetter, promptText],
+    [id, lang, defaultTrack, asLetter, promptText, startDate],
   )
   const { session, error } = useEntrySession(id, userId, blank, isNew)
   useSessionState(session)
@@ -87,6 +94,7 @@ export function Write() {
   const editable = !!session && !session.unavailable && state !== 'readonly' && !(state === 'grace' && session.status === 'idle')
 
   const [photoNotice, setPhotoNotice] = useState<string | null>(null)
+  const [pickingDate, setPickingDate] = useState(!!startState?.pickDate)
   const [title, setTitle] = useState('')
   const [titleVersion, setTitleVersion] = useState(-1)
   if (session && titleVersion !== session.remoteVersion) {
@@ -164,6 +172,28 @@ export function Write() {
       <article className="page" aria-label="Journal page">
         <header className="page-head">
           <h1 className="page-date">{formatDate(c.entry_date)}</h1>
+          {editable && (
+            <div className="date-edit">
+              {pickingDate ? (
+                <>
+                  <input
+                    type="date"
+                    aria-label="Date of this entry"
+                    value={c.entry_date}
+                    max={localDate()}
+                    autoFocus={!!startState?.pickDate}
+                    onChange={(e) => {
+                      const d = parseEntryDate(e.target.value)
+                      if (d) session.change({ entry_date: d })
+                    }}
+                  />
+                  <button type="button" className="btn btn-quiet" onClick={() => { setPickingDate(false); void session.flush() }}>Done</button>
+                </>
+              ) : (
+                <button type="button" className="btn btn-quiet" onClick={() => setPickingDate(true)}>Change date</button>
+              )}
+            </div>
+          )}
           <input
             className="page-title"
             dir="auto"
