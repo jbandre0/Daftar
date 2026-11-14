@@ -7,7 +7,7 @@ import { supabase } from './supabase'
 import { preview } from './preview'
 import { syncDeps } from './syncDeps'
 import type { Draft } from './draftStore'
-import type { EntryContent } from './entries'
+import { isFavorite, type EntryContent } from './entries'
 import { isKnownSealed, isSealedNow, maskIfSealed } from './seal'
 
 export type BrowseFilters = {
@@ -17,8 +17,9 @@ export type BrowseFilters = {
   language: string | null
   from: string | null
   to: string | null
+  favorites: boolean
 }
-export const NO_FILTERS: BrowseFilters = { q: '', track: null, tags: [], language: null, from: null, to: null }
+export const NO_FILTERS: BrowseFilters = { q: '', track: null, tags: [], language: null, from: null, to: null, favorites: false }
 
 export type BrowseRow = {
   id: string
@@ -35,13 +36,14 @@ export type BrowseRow = {
   language: string
   tag_ids: string[]
   unsynced?: boolean
+  favorite?: boolean
 }
 export type BrowsePage = { rows: BrowseRow[]; total: number; offline: boolean }
 
 export const PAGE_SIZE = 40
 
 export const activeFilterCount = (f: BrowseFilters) =>
-  (f.track ? 1 : 0) + f.tags.length + (f.language ? 1 : 0) + (f.from || f.to ? 1 : 0)
+  (f.track ? 1 : 0) + f.tags.length + (f.language ? 1 : 0) + (f.from || f.to ? 1 : 0) + (f.favorites ? 1 : 0)
 
 // ---- pure helpers (also used by preview mode and tests) --------------------------------------------------
 
@@ -53,6 +55,7 @@ export function matchesFilters(c: EntryContent, f: BrowseFilters): boolean {
   if (sealed && f.q.trim()) return false // a sealed letter is never found by its words
   if (f.track && (c.track_id ?? null) !== f.track) return false
   if (f.language && c.language !== f.language) return false
+  if (f.favorites && !isFavorite(c)) return false
   if (f.from && c.entry_date < f.from) return false
   if (f.to && c.entry_date > f.to) return false
   if (f.tags.length && !f.tags.every((t) => (c.tag_ids ?? []).includes(t))) return false
@@ -80,7 +83,7 @@ export function rowFromContent(c: EntryContent, updatedAt: number, q: string, un
   return {
     id: c.id, entry_date: c.entry_date, title: hidden ? null : c.title || null, snippet: hidden ? null : makeSnippet(c.body_text, q),
     word_count: c.word_count, updated_at: new Date(updatedAt).toISOString(), track_id: c.track_id ?? null, language: c.language,
-    tag_ids: c.tag_ids ?? [], unsynced, letter_to: m.letter_to, sealed_until: m.sealed_until,
+    tag_ids: c.tag_ids ?? [], unsynced, letter_to: m.letter_to, sealed_until: m.sealed_until, favorite: isFavorite(c),
   }
 }
 
@@ -140,6 +143,7 @@ export async function browseEntries(userId: string, f: BrowseFilters, offset = 0
     p_to: f.to,
     p_limit: PAGE_SIZE,
     p_offset: offset,
+    p_favorites: f.favorites,
   })
   if (error) {
     // Offline (or the server is unreachable): search what is on this device.

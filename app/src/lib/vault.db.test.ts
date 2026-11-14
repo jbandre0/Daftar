@@ -186,6 +186,18 @@ describe('export', () => {
 })
 
 describe('round trip (phase 4 "done when")', () => {
+  it('a favorite exports as a plain field and survives wipe and restore', async () => {
+    await db.query(`update entries set fields = fields || '{"favorite": true}'::jsonb where id = $1`, [id(1)])
+    const before = await exportFile(A)
+    expect(before.entries.find((e) => e.id === id(1))!.fields).toMatchObject({ favorite: true })
+    expect(JSON.stringify(before.entries.find((e) => e.id === id(3))!.fields)).not.toContain('favorite') // others untouched
+    await wipe(A)
+    await restore(A, before)
+    const after = await exportFile(A)
+    expect(after.entries.find((e) => e.id === id(1))!.fields).toMatchObject({ favorite: true })
+    expect(normalise(after)).toEqual(normalise(before))
+  })
+
   it('export → wipe → restore → export: the files match apart from timestamps', async () => {
     const before = await exportFile(A)
     await wipe(A)

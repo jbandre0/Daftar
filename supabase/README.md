@@ -22,6 +22,7 @@ Run each new file in `migrations/` once, in order, then re-run `tests/rls.test.s
 - `0008_letters.sql` (phase 7: the seal guard, masked browse and list_letters)
 - `0009_prompts.sql` (phase 8: one prompt per text, time-of-day check; tidies existing rows first; then load prompts, below)
 - `0010_licensing.sql` (phase 9: apply_license_event, license_events; then set up the webhook, below)
+- `0011_favorites.sql` (favorites: browse_entries can filter by the star and says which rows are starred)
 
 ## Loading prompts
 Prompts live in `seed/prompts.json` (the file shipped is a small sample; replace it with yours).

@@ -31,7 +31,7 @@ import seedFile from '../../../supabase/seed/prompts.json'
 const SERVER = 'daftar.preview.server'
 const OFFLINE = 'daftar.preview.offline'
 const FLAG = 'daftar.preview'
-const SEED_VERSION = '4'
+const SEED_VERSION = '5'
 const SEED_KEY = 'daftar.preview.seed'
 
 type Row = { content: EntryContent; revision: number; updated_at: string; created_at: string }
@@ -113,7 +113,7 @@ function seed() {
     sample(1, 1, 'Morning by the window', [
       'Read Alma 32 this morning. The seed comparison landed differently today, slower and warmer than I remembered.',
       'الحمد لله على كل حال. كتبت هذه الفقرة بالعربية داخل صفحة إنجليزية.',
-    ], { track_id: 'tr-spiritual', tag_ids: ['tag-mosque'], fields: { scripture: 'Alma 32', answered_later: false } }),
+    ], { track_id: 'tr-spiritual', tag_ids: ['tag-mosque'], fields: { scripture: 'Alma 32', answered_later: false, favorite: true } }),
     sample(2, 3, 'Fireworks', ['Loud, bright, and my little cousin covered his ears the whole time and still refused to leave.'], { tag_ids: ['tag-family'] }),
     sample(3, 5, '', ['A dream about a lighthouse that kept turning toward me no matter which way I walked on the shore.'], { track_id: 'tr-dreams' }),
     sample(4, 9, 'To me, at graduation', ['Open this when you walk. You were more afraid than you let on, and it turned out fine.'], {
@@ -132,7 +132,7 @@ function seed() {
     sample(6, 38, 'The long road home', [
       'We left before sunrise and the fields were still grey. Dad drove, I mostly watched the light arrive.',
       'Somewhere past the second town the radio gave up and we just talked, the way you only can in a car.',
-    ], { tag_ids: ['tag-travel', 'tag-family'] }),
+    ], { tag_ids: ['tag-travel', 'tag-family'], fields: { favorite: true } }),
     sample(7, 70, 'First week of summer', ['Slow mornings. The garden finally did something.']),
     sample(8, 2, '', ['Short one. Tired, but the good kind. The walk home smelled like rain before it rained.']),
     sample(9, 2, 'Evening notes', ['Called grandma. She told the lentil soup story again and I did not mind at all.'], { tag_ids: ['tag-family'] }),

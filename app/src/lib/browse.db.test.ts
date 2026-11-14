@@ -25,10 +25,10 @@ async function asUser<T = unknown>(uid: string, sql: string, params: unknown[] =
   })
 }
 
-type Hit = { id: string; entry_date: string; title: string | null; snippet: string | null; tag_ids: string[]; total_count: string | number; track_id: string | null }
+type Hit = { favorite: boolean; id: string; entry_date: string; title: string | null; snippet: string | null; tag_ids: string[]; total_count: string | number; track_id: string | null }
 const browse = (uid: string, args: Record<string, unknown> = {}) => {
-  const a = { q: null, track: null, tags: null, language: null, from: null, to: null, limit: 40, offset: 0, ...args }
-  return asUser<Hit>(uid, `select * from browse_entries($1, $2, $3::uuid[], $4, $5::date, $6::date, $7, $8)`, [a.q, a.track, a.tags, a.language, a.from, a.to, a.limit, a.offset])
+  const a = { q: null, track: null, tags: null, language: null, from: null, to: null, limit: 40, offset: 0, favorites: false, ...args }
+  return asUser<Hit>(uid, `select * from browse_entries($1, $2, $3::uuid[], $4, $5::date, $6::date, $7, $8, $9)`, [a.q, a.track, a.tags, a.language, a.from, a.to, a.limit, a.offset, a.favorites])
 }
 const ids = (rows: Hit[]) => rows.map((r) => r.id)
 
@@ -193,6 +193,58 @@ describe('filters', () => {
   })
   it('a blank search is just the list', async () => {
     expect(ids(await browse(A, { q: '   ' }))).toEqual(ids(await browse(A, {})))
+  })
+})
+
+describe('favorites (the star)', () => {
+  const star = (n: number, on = true, user = A) => db.query(`update entries set fields = $2::jsonb where id = $1 and user_id = $3`, [id(n), JSON.stringify(on ? { favorite: true, scripture: 'Alma 32' } : {}), user])
+  it('the Favorites filter lists only starred entries, and says which are starred', async () => {
+    await star(1)
+    await star(5)
+    const fav = await browse(A, { favorites: true })
+    expect(ids(fav).sort()).toEqual([id(1), id(5)].sort())
+    expect(fav.every((r) => r.favorite === true)).toBe(true)
+    expect(Number(fav[0].total_count)).toBe(2)
+    const all = await browse(A)
+    expect(all.find((r) => r.id === id(1))!.favorite).toBe(true)
+    expect(all.find((r) => r.id === id(2))!.favorite).toBe(false)
+  })
+  it('combines with search, track and tags', async () => {
+    expect(ids(await browse(A, { favorites: true, q: 'lentil' }))).toEqual([id(1)])
+    expect(ids(await browse(A, { favorites: true, q: 'river' }))).toEqual([]) // entry 2 is not starred
+    expect(ids(await browse(A, { favorites: true, track: T(1) }))).toEqual([id(1)])
+    expect(ids(await browse(A, { favorites: true, tags: [T(11)] }))).toEqual([id(1)])
+  })
+  it('un-starring takes it out of the list; false or missing counts as not starred', async () => {
+    await star(1, false)
+    expect(ids(await browse(A, { favorites: true }))).not.toContain(id(1))
+    await db.query(`update entries set fields = '{"favorite": false}' where id = $1`, [id(5)])
+    expect(ids(await browse(A, { favorites: true }))).toEqual([])
+  })
+  it("never shows someone else's favorites", async () => {
+    await star(9, true, B)
+    expect(ids(await browse(A, { favorites: true }))).not.toContain(id(9))
+    expect(ids(await browse(B, { favorites: true }))).toEqual([id(9)])
+    await star(9, false, B)
+  })
+  it('a starred, sealed letter still shows no title and no words', async () => {
+    // (the app can't star a sealed letter: the seal guard freezes it. Set the flag the way a restore of an older file could.)
+    await db.exec('alter table entries disable trigger entries_guard_seal')
+    await star(6)
+    await db.exec('alter table entries enable trigger entries_guard_seal')
+    const r = (await browse(A, { favorites: true })).find((x) => x.id === id(6))!
+    expect(r.favorite).toBe(true)
+    expect(r.title).toBeNull()
+    expect(r.snippet).toBeNull()
+    expect(ids(await browse(A, { favorites: true, q: 'marmalade' }))).not.toContain(id(6)) // still never found by its words
+    await db.exec('alter table entries disable trigger entries_guard_seal')
+    await star(6, false)
+    await db.exec('alter table entries enable trigger entries_guard_seal')
+  })
+  it('trashed entries stay out', async () => {
+    await star(3)
+    expect(ids(await browse(A, { favorites: true }))).not.toContain(id(3))
+    await star(3, false)
   })
 })
 

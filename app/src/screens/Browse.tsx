@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { CaretLeft, CaretRight, MagnifyingGlass, X } from '@phosphor-icons/react'
+import { CaretLeft, CaretRight, MagnifyingGlass, Star, X } from '@phosphor-icons/react'
 import { useAuth } from '../auth'
 import { useOrganize } from '../organize'
 import { chaptersFor, LANGUAGES, languageLabel, type Chapter } from '../lib/organize'
@@ -20,6 +20,7 @@ function readParams(sp: URLSearchParams) {
     language: sp.get('lang'),
     from: sp.get('from'),
     to: sp.get('to'),
+    favorites: sp.get('fav') === '1',
   }
   return { f, chapter: sp.get('chapter'), view: (sp.get('view') === 'list' ? 'list' : 'cal') as View, month: sp.get('month'), day: sp.get('day') }
 }
@@ -68,6 +69,7 @@ function Results({ rows, q, empty }: { rows: BrowseRow[]; q: string; empty: Reac
               <span className="entry-date">{shortDate(r.entry_date)}</span>
               <span className="entry-main">
                 <span className="entry-title" dir="auto">
+                  {r.favorite && <Star className="entry-star" size={20} weight="light" aria-label="Favorite" role="img" />}
                   {r.sealed_until
                     ? r.letter_to ? `A letter to ${r.letter_to}` : 'A sealed letter'
                     : r.title ? <Highlight text={r.title} q={q} /> : r.snippet ? <Highlight text={r.snippet.slice(0, 70)} q={q} /> : 'Untitled'}
@@ -259,7 +261,7 @@ export function Browse() {
 
   const clearAll = () => {
     setQInput('')
-    update({ q: null, track: null, tags: null, lang: null, from: null, to: null, chapter: null })
+    update({ q: null, track: null, tags: null, lang: null, from: null, to: null, chapter: null, fav: null })
   }
 
   const usedTagIds = filters.tags
@@ -296,6 +298,10 @@ export function Browse() {
             List
           </button>
         </div>
+        <button type="button" className="btn btn-tint" aria-pressed={filters.favorites} onClick={() => update({ fav: filters.favorites ? null : '1' })}>
+          <Star size={20} weight="light" aria-hidden />
+          Favorites
+        </button>
         <Link className="btn btn-tint" to="/write/new?past=1">Add a past entry</Link>
         <button className="btn btn-tint" aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)}>
           Filters{activeFilterCount(filters) ? ` · ${activeFilterCount(filters)}` : ''}
@@ -393,7 +399,12 @@ export function Browse() {
               rows={rows}
               q={filters.q}
               empty={
-                searching || filtersOn ? (
+                filters.favorites && activeFilterCount(filters) === 1 && !searching ? (
+                  <div className="empty-block">
+                    <p>No favorites yet. Open an entry and tap the star.</p>
+                    <button className="btn btn-tint" onClick={clearAll}>Show everything</button>
+                  </div>
+                ) : searching || filtersOn ? (
                   <div className="empty-block">
                     <p>Nothing matches that.</p>
                     <button className="btn btn-tint" onClick={clearAll}>Clear the search and filters</button>

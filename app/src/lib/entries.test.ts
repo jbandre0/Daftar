@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseEntryDate } from './entries'
+import { isFavorite, parseEntryDate, withFavorite } from './entries'
 
 describe('parseEntryDate: the date a page may be filed under', () => {
   const today = '2026-10-13'
@@ -18,5 +18,29 @@ describe('parseEntryDate: the date a page may be filed under', () => {
     expect(parseEntryDate('', today)).toBeNull()
     expect(parseEntryDate(null, today)).toBeNull()
     expect(parseEntryDate(undefined, today)).toBeNull()
+  })
+})
+
+describe('favorite helpers', () => {
+  it('isFavorite is true only for a real true', () => {
+    expect(isFavorite({ fields: { favorite: true } })).toBe(true)
+    expect(isFavorite({ fields: { favorite: false } })).toBe(false)
+    expect(isFavorite({ fields: { favorite: 'true' } })).toBe(false)
+    expect(isFavorite({ fields: {} })).toBe(false)
+    expect(isFavorite({})).toBe(false)
+  })
+  it('withFavorite adds the star and keeps every other field', () => {
+    expect(withFavorite({ scripture: 'Alma 32', answered_later: true }, true)).toEqual({ scripture: 'Alma 32', answered_later: true, favorite: true })
+    expect(withFavorite(undefined, true)).toEqual({ favorite: true })
+  })
+  it('removing the star removes the key, so an un-starred entry exports as it always did', () => {
+    expect(withFavorite({ scripture: 'Alma 32', favorite: true }, false)).toEqual({ scripture: 'Alma 32' })
+    expect('favorite' in withFavorite({ favorite: true }, false)).toBe(false)
+    expect(withFavorite(undefined, false)).toEqual({})
+  })
+  it('does not change the object it was given', () => {
+    const f = { favorite: true, a: 1 }
+    withFavorite(f, false)
+    expect(f).toEqual({ favorite: true, a: 1 })
   })
 })

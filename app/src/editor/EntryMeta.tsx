@@ -1,10 +1,10 @@
 import { useId, useState, type FormEvent } from 'react'
-import { X } from '@phosphor-icons/react'
+import { Star, X } from '@phosphor-icons/react'
 import { useOrganize } from '../organize'
 import { useAuth } from '../auth'
 import { createTag, DuplicateError, LANGUAGES, type Track } from '../lib/organize'
 import type { EntryContent } from '../lib/entries'
-import { fieldsOf, tagsOf, trackOf } from '../lib/entries'
+import { fieldsOf, isFavorite, tagsOf, trackOf, withFavorite } from '../lib/entries'
 
 type Props = {
   content: EntryContent
@@ -54,6 +54,16 @@ export function EntryMeta({ content, editable, onTrack, onLanguage, onTags, onFi
   return (
     <>
       <div className="page-pills">
+        <button
+          type="button"
+          className="pill pill-toggle"
+          aria-pressed={isFavorite(content)}
+          disabled={!editable}
+          onClick={() => onFields(withFavorite(f, !isFavorite(content)))}
+        >
+          <Star size={20} weight="light" aria-hidden />
+          Favorite
+        </button>
         <label className="pill pill-select" data-color={track?.color_token ?? 'ash-soft'}>
           <span className="pill-dot" aria-hidden />
           <span className="sr-only">Track</span>

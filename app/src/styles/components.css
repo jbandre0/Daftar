@@ -588,3 +588,10 @@ a.sealed-card:hover { background: var(--tint); }
 .page-head .date-edit { flex-basis: 100%; display: flex; align-items: center; gap: var(--sp-2); margin-block-start: calc(-1 * var(--sp-1)); }
 .page-head .date-edit .btn-quiet { min-height: 32px; font-size: var(--fs-13); color: var(--ink-soft); }
 .page-head .date-edit input[type='date'] { min-height: 36px; padding: 0 var(--sp-3); color: var(--ink); background: rgba(42, 31, 22, 0.08); border: 1px solid var(--page-line); border-radius: var(--r-ui); font-family: var(--font-ui); font-size: var(--fs-15); color-scheme: light; }
+
+/* Favorites: the star toggle on a page, the Favorites button in Browse, and the star on a list row */
+.pill-toggle { cursor: pointer; border: 0; }
+.pill-toggle:disabled { cursor: default; opacity: 0.6; }
+.pill-toggle[aria-pressed='true'] { --fill: var(--flame); color: var(--on-flame); }
+.btn[aria-pressed='true'] { --fill: var(--flame); color: var(--on-flame); }
+.entry-star { display: inline-block; vertical-align: -4px; margin-inline-end: var(--sp-1); color: var(--flame-text); }

@@ -25,6 +25,13 @@ export type EntryContent = {
 export const trackOf = (c: EntryContent) => c.track_id ?? null
 export const fieldsOf = (c: EntryContent) => c.fields ?? {}
 export const tagsOf = (c: EntryContent) => c.tag_ids ?? []
+/** A favorite is `fields.favorite === true` (it travels with the entry: saved, exported and restored like any field). */
+export const isFavorite = (c: Pick<EntryContent, 'fields'>) => c.fields?.favorite === true
+/** The fields with the star on or off. Off removes the key, so un-starred entries export exactly as before. */
+export function withFavorite(fields: Record<string, unknown> | undefined, on: boolean): Record<string, unknown> {
+  const { favorite: _drop, ...rest } = fields ?? {}
+  return on ? { ...rest, favorite: true } : rest
+}
 
 export type EntryRow = EntryContent & {
   revision: number

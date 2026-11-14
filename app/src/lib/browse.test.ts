@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('./supabase', () => ({ supabase: {} }))
 vi.mock('./syncDeps', () => ({ syncDeps: { store: { all: async () => [] } } }))
-const { matchesFilters, makeSnippet, overlayDrafts, NO_FILTERS, activeFilterCount } = await import('./browse')
+const { matchesFilters, makeSnippet, overlayDrafts, NO_FILTERS, activeFilterCount, rowFromContent } = await import('./browse')
 const { buildSpreads, spreadIndexFor, quietLabel, addDays, daysBetween } = await import('./readModel')
 import type { Draft } from './draftStore'
 import type { EntryContent } from './entries'
@@ -112,5 +112,32 @@ describe('Read mode: spreads', () => {
     expect(addDays('2026-11-01', 1)).toBe('2026-11-02')
     expect(addDays('2026-12-31', 1)).toBe('2027-01-01')
     expect(daysBetween('2026-03-01', '2026-04-01')).toBe(31)
+  })
+})
+
+describe('favorites (the star)', () => {
+  const content = (fields: Record<string, unknown> | undefined) => ({ id: 'f1', entry_date: '2026-10-01', title: 'T', body_rich: {}, body_text: 'words', language: 'en', word_count: 1, fields })
+  it('the Favorites filter keeps only starred entries', () => {
+    const f = { ...NO_FILTERS, favorites: true }
+    expect(matchesFilters(content({ favorite: true }), f)).toBe(true)
+    expect(matchesFilters(content({}), f)).toBe(false)
+    expect(matchesFilters(content(undefined), f)).toBe(false)
+    expect(matchesFilters(content({ favorite: false }), f)).toBe(false)
+    expect(matchesFilters(content({ favorite: 'yes' }), f)).toBe(false) // only a real true counts
+  })
+  it('without the filter, everything matches', () => {
+    expect(matchesFilters(content({}), NO_FILTERS)).toBe(true)
+  })
+  it('combines with search', () => {
+    expect(matchesFilters(content({ favorite: true }), { ...NO_FILTERS, favorites: true, q: 'words' })).toBe(true)
+    expect(matchesFilters(content({ favorite: true }), { ...NO_FILTERS, favorites: true, q: 'absent' })).toBe(false)
+  })
+  it('counts as an active filter, so the list (not the calendar) is shown', () => {
+    expect(activeFilterCount({ ...NO_FILTERS, favorites: true })).toBe(1)
+    expect(activeFilterCount(NO_FILTERS)).toBe(0)
+  })
+  it('a row says whether it is starred', () => {
+    expect(rowFromContent(content({ favorite: true }), 0, '', false).favorite).toBe(true)
+    expect(rowFromContent(content({}), 0, '', false).favorite).toBe(false)
   })
 })
