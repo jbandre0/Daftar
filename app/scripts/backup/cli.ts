@@ -167,7 +167,10 @@ async function login() {
     const sb = client({ url, key })
     const sent = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
     if (sent.error) throw new Error(`Couldn't send the code: ${sent.error.message}`)
-    const code = (await rl.question('Check your email and type the 6-digit code: ')).trim()
+    console.log('A sign-in email is on its way. Use the 6-digit CODE in it here; the link in it is for the browser and')
+    console.log("won't sign in this terminal. No code in the email? Add {{ .Token }} to the Magic Link template in the")
+    console.log('Supabase dashboard (Authentication -> Emails; see supabase/README.md), then run login again.')
+    const code = (await rl.question('Code: ')).trim()
     const { data, error } = await sb.auth.verifyOtp({ email, token: code, type: 'email' })
     if (error || !data.session) throw new Error("That code didn't work. It may have expired. Run login again for a new one.")
 
