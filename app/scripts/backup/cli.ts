@@ -16,12 +16,13 @@
  * Files: config and state in ~/Library/Application Support/Daftar Backup/ (the scheduled copy of this script lives
  * there too, outside ~/Documents, which macOS guards from background jobs). Log: ~/Library/Logs/Daftar Backup.log.
  */
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js'
 import { execFile } from 'node:child_process'
 import { copyFile, mkdir, readFile, readdir, rename, rm, rmdir, stat, unlink, writeFile } from 'node:fs/promises'
 import { lookup } from 'node:dns/promises'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { createServer } from 'node:http'
 import { createInterface } from 'node:readline/promises'
 import { emptyState, runBackup, type BackupState } from '../../src/lib/backup'
 import type { MediaRow } from '../../src/lib/photoRuntime'
@@ -143,6 +144,64 @@ const isNetwork = (e: unknown) => /fetch failed|ENOTFOUND|ECONNRESET|ETIMEDOUT|E
 
 // ---- commands ---------------------------------------------------------------------------------------------------
 
+const LINK_PORT = Number(process.env.DAFTAR_BACKUP_PORT) || 5173 // already allowed by the dev setup: http://localhost:5173/**
+const LINK_PATH = '/daftar-backup-signin'
+const LINK_WAIT_MS = 15 * 60_000
+
+/**
+ * A one-shot page on localhost that the magic link lands on. Port 5173 is used because the project's Redirect URLs
+ * already allow http://localhost:5173/** (see supabase/README.md), so no dashboard change is needed.
+ */
+async function listenForLink() {
+  let resolveCode!: (c: string) => void
+  let rejectCode!: (e: Error) => void
+  const code = new Promise<string>((res, rej) => ((resolveCode = res), (rejectCode = rej)))
+  code.catch(() => {})
+  let answer: ((ok: boolean) => void) | null = null
+  const page = (title: string, text: string) =>
+    `<!doctype html><meta charset="utf-8"><title>${title}</title><body style="font:17px/1.5 system-ui;max-width:32rem;margin:15vh auto;padding:0 16px">` +
+    `<h1 style="font-weight:500">${title}</h1><p>${text}</p></body>`
+  const server = createServer((req, res) => {
+    const u = new URL(req.url ?? '/', 'http://localhost')
+    if (u.pathname !== LINK_PATH) {
+      res.writeHead(404).end()
+      return
+    }
+    const c = u.searchParams.get('code')
+    const err = u.searchParams.get('error_description') || u.searchParams.get('error')
+    if (!c) {
+      res.writeHead(400, { 'content-type': 'text/html; charset=utf-8' })
+      res.end(page('That link didn\'t work', `${err ? err.replace(/[<>&]/g, '') + '. ' : ''}Links work once and expire. Run login again in the terminal for a fresh one.`))
+      rejectCode(new Error(`The link didn't work${err ? ` (${err})` : ''}. Run login again for a fresh email.`))
+      return
+    }
+    answer = (ok) => {
+      res.writeHead(ok ? 200 : 400, { 'content-type': 'text/html; charset=utf-8' })
+      res.end(ok ? page('Backup signed in', 'You can close this tab and go back to the terminal.') : page('Sign-in failed', 'Go back to the terminal to see why.'))
+    }
+    resolveCode(c)
+  })
+  await new Promise<void>((res, rej) => {
+    server.once('error', (e: NodeJS.ErrnoException) =>
+      rej(new Error(e.code === 'EADDRINUSE'
+        ? `Port ${LINK_PORT} is busy (probably the Daftar dev server). Stop it, then run login again.`
+        : `Couldn't open the sign-in page on this Mac: ${e.message}`)))
+    server.listen(LINK_PORT, () => res())
+  })
+  const timer = setTimeout(() => rejectCode(new Error('No link was clicked within 15 minutes. Run login again.')), LINK_WAIT_MS)
+  return {
+    redirect: `http://localhost:${LINK_PORT}${LINK_PATH}`,
+    allow: `http://localhost:${LINK_PORT}/**`,
+    code,
+    done: (ok: boolean) => answer?.(ok),
+    close: () => {
+      clearTimeout(timer)
+      server.close()
+      server.closeAllConnections?.()
+    },
+  }
+}
+
 async function login() {
   const env = await envLocal()
   const old = await readJson<Partial<Config>>(CONFIG, {})
@@ -150,6 +209,7 @@ async function login() {
   const key = env.key || old.key
   if (!url || !key) throw new Error('No Supabase address found. Run this from the app folder, where .env.local lives.')
   const rl = createInterface({ input: process.stdin, output: process.stdout })
+  let session: Session | null = null
   try {
     const email = (await rl.question(`Email you sign in to Daftar with${old.email ? ` [${old.email}]` : ''}: `)).trim() || old.email || ''
     if (!email.includes('@')) throw new Error('That is not an email address.')
@@ -164,17 +224,35 @@ async function login() {
     const problem = await reachProblem(url, key)
     if (problem) throw new Error(problem)
 
-    const sb = client({ url, key })
-    const sent = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
-    if (sent.error) throw new Error(`Couldn't send the code: ${sent.error.message}`)
-    console.log('A sign-in email is on its way. Use the 6-digit CODE in it here; the link in it is for the browser and')
-    console.log("won't sign in this terminal. No code in the email? Add {{ .Token }} to the Magic Link template in the")
-    console.log('Supabase dashboard (Authentication -> Emails; see supabase/README.md), then run login again.')
-    const code = (await rl.question('Code: ')).trim()
-    const { data, error } = await sb.auth.verifyOtp({ email, token: code, type: 'email' })
-    if (error || !data.session) throw new Error("That code didn't work. It may have expired. Run login again for a new one.")
-
-    await keychain.set(email, data.session.refresh_token)
+    // PKCE: the link comes back to this terminal on localhost with ?code=, which only this process can exchange
+    const sb = createClient(url, key, { auth: { flowType: 'pkce', persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
+    const link = await listenForLink()
+    try {
+      const sent = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: link.redirect } })
+      if (sent.error) {
+        throw new Error(/rate limit/i.test(sent.error.message)
+          ? "Supabase's email sender allows only a few emails an hour. Wait an hour, then run login again."
+          : `Couldn't send the sign-in email: ${sent.error.message}`)
+      }
+      console.log('\nA sign-in email is on its way. Open it ON THIS MAC and click the link: a browser tab will say')
+      console.log('"Backup signed in" and this terminal carries on by itself. (If your email shows a 6-digit code, you can type it here instead.)')
+      console.log(`If the link opens Daftar instead, add ${link.allow} to Supabase -> Authentication -> URL Configuration -> Redirect URLs, then run login again.`)
+      const abort = new AbortController()
+      const typed = rl.question('Code (or just click the link): ', { signal: abort.signal }).then((c) => ({ kind: 'code' as const, value: c.trim() }))
+      const got = await Promise.race([link.code.then((c) => ({ kind: 'link' as const, value: c })), typed]).finally(() => abort.abort())
+      const { data, error } = got.kind === 'link'
+        ? await sb.auth.exchangeCodeForSession(got.value)
+        : await sb.auth.verifyOtp({ email, token: got.value, type: 'email' })
+      if (error || !data.session) throw new Error(`That sign-in didn't work (${error?.message ?? 'no session'}). Run login again for a fresh email.`)
+      session = data.session
+      link.done(true)
+    } catch (e) {
+      link.done(false)
+      throw e
+    } finally {
+      link.close()
+    }
+    await keychain.set(email, session!.refresh_token)
     await writeJson(CONFIG, { url, key, email, dir } satisfies Config)
     await mkdir(dir, { recursive: true })
     console.log(`\nSigned in as ${email}. Backups go to ${dir}.`)
