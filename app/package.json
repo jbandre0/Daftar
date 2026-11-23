@@ -10,7 +10,9 @@
     "typecheck": "tsc -b --noEmit",
     "db:test": "node scripts/db-test.mjs",
     "test": "vitest run",
-    "prompts:sql": "node scripts/prompts-to-sql.mjs"
+    "prompts:sql": "node scripts/prompts-to-sql.mjs",
+    "backup:build": "vite build -c vite.backup.config.ts --logLevel warn",
+    "backup": "npm run -s backup:build && node scripts/backup/dist/daftar-backup.mjs"
   },
   "dependencies": {
     "@jsquash/webp": "^1.5.0",
