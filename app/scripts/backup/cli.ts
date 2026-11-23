@@ -19,6 +19,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { execFile } from 'node:child_process'
 import { copyFile, mkdir, readFile, readdir, rename, rm, rmdir, stat, unlink, writeFile } from 'node:fs/promises'
+import { lookup } from 'node:dns/promises'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
@@ -120,6 +121,24 @@ async function withLock<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
+/** Turn "fetch failed" into what actually went wrong, in plain words. null = the server answered. */
+async function reachProblem(url: string, key: string): Promise<string | null> {
+  try {
+    await fetch(`${url.replace(/\/$/, '')}/auth/v1/health`, { headers: { apikey: key }, signal: AbortSignal.timeout(15_000) })
+    return null
+  } catch (e) {
+    const code = (e as { cause?: { code?: string } }).cause?.code ?? ''
+    const host = new URL(url).host
+    const online = await lookup('supabase.com').then(() => true, () => false)
+    if (!online) return "This Mac can't reach the internet right now."
+    if (code === 'ENOTFOUND') {
+      return `The Supabase address ${host} doesn't exist right now. A free project that sat unused gets paused: open the ` +
+        'Supabase dashboard and restore it (your data is kept). If the project was deleted or moved, update VITE_SUPABASE_URL in .env.local.'
+    }
+    return `Couldn't reach Supabase at ${host} (${code || (e as Error).message}).`
+  }
+}
+
 const isNetwork = (e: unknown) => /fetch failed|ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network|Couldn't reach/i.test(String((e as Error)?.message ?? e))
 
 // ---- commands ---------------------------------------------------------------------------------------------------
@@ -135,8 +154,15 @@ async function login() {
     const email = (await rl.question(`Email you sign in to Daftar with${old.email ? ` [${old.email}]` : ''}: `)).trim() || old.email || ''
     if (!email.includes('@')) throw new Error('That is not an email address.')
     const defDir = old.dir || DEFAULT_DIR
-    const dirIn = (await rl.question(`Folder for backups [${defDir.replace(HOME, '~')}]: `)).trim()
-    const dir = dirIn ? resolve(dirIn.replace(/^~(?=\/|$)/, HOME)) : defDir
+    const pretty = (p: string) => p.replace(ICLOUD, 'iCloud Drive').replace(HOME, '~')
+    console.log('Where should backups go? Press Return for the one in brackets. A plain name (like "Daftar Backups")')
+    console.log('is a folder in iCloud Drive; a path starting with / or ~ is used as written.')
+    const dirIn = (await rl.question(`Folder [${pretty(defDir)}]: `)).trim()
+    const dir = !dirIn ? defDir : /^[~/]/.test(dirIn) ? resolve(dirIn.replace(/^~(?=\/|$)/, HOME)) : join(ICLOUD, dirIn)
+    console.log(`Backups will go to: ${pretty(dir)}`)
+
+    const problem = await reachProblem(url, key)
+    if (problem) throw new Error(problem)
 
     const sb = client({ url, key })
     const sent = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
@@ -198,7 +224,7 @@ async function runOnce() {
   } catch (e) {
     const msg = e instanceof SignInNeeded
       ? 'Backups need you to sign in again. In the app folder run: npm run backup -- login'
-      : `Last night's backup didn't finish: ${(e as Error).message}`
+      : `Last night's backup didn't finish: ${(isNetwork(e) && (await reachProblem(cfg.url, cfg.key))) || (e as Error).message}`
     await writeJson(STATE, { ...prev, lastError: msg, lastErrorAt: new Date().toISOString() })
     log(`FAILED ${msg}`)
     await notify(msg)
