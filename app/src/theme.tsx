@@ -1,8 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 export type Theme = 'lamplight' | 'daylight'
-/** 'book' = Newsreader (default); 'hand' = Windsong, for short, personal entries. */
-export type WritingStyle = 'book' | 'hand'
+/** 'book' = Newsreader (default). print = Patrick Hand, notebook = Kalam, pen = Caveat, hand = Windsong (the most flourished). */
+export type WritingStyle = 'book' | 'print' | 'notebook' | 'pen' | 'hand'
+export const WRITING_STYLES: { id: WritingStyle; label: string }[] = [
+  { id: 'book', label: 'Book' },
+  { id: 'print', label: 'Print' },
+  { id: 'notebook', label: 'Notebook' },
+  { id: 'pen', label: 'Quick pen' },
+  { id: 'hand', label: 'Flourish' },
+]
 const KEY = 'daftar.theme'
 const WRITE_KEY = 'daftar.writing'
 
@@ -15,7 +22,8 @@ const ThemeCtx = createContext<{
 
 function readWriting(): WritingStyle {
   try {
-    return localStorage.getItem(WRITE_KEY) === 'hand' ? 'hand' : 'book'
+    const v = localStorage.getItem(WRITE_KEY)
+    return WRITING_STYLES.some((w) => w.id === v) ? (v as WritingStyle) : 'book'
   } catch {
     return 'book'
   }

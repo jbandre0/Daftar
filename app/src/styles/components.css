@@ -87,12 +87,20 @@
   border-block-start: 1px solid var(--page-line); color: var(--ink-soft); font-family: var(--font-ui); font-size: var(--fs-13);
 }
 .write-foot .btn-quiet { color: var(--ink); }
+.write-foot-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); justify-content: flex-end; }
+.delete-confirm { margin-block-start: var(--sp-4); padding: var(--sp-4); border: 1px solid var(--page-line); border-radius: 20px; color: var(--ink); }
+.delete-confirm p { margin-block: 0 var(--sp-3); }
 
-/* Handwriting option: Windsong for the body. It is hairline-thin, so it runs larger and looser. */
-:root[data-write='hand'] .ProseMirror { font-family: var(--font-script); font-size: 1.75rem; line-height: 1.45; letter-spacing: 0.01em; }
-:root[data-write='hand'] .ProseMirror h2 { font-family: var(--font-script); font-weight: 400; font-size: 2.25rem; }
-/* Windsong has no Arabic: keep Arabic paragraphs at normal book size so they don't tower over the script */
-:root[data-write='hand'] .ProseMirror :is(p, li):dir(rtl) { font-family: var(--font-serif); font-size: var(--fs-body); line-height: 1.9; }
+/* Handwriting options for the page body. Each sets a face, a size and a line height; the shared rules below apply them.
+ * Windsong ('hand') is hairline-thin, so it runs larger and looser. Arabic has no handwriting face: it stays in book type. */
+:root[data-write='print']    { --write-font: var(--font-print);    --write-size: 1.375rem; --write-lh: 1.6; }
+:root[data-write='notebook'] { --write-font: var(--font-notebook); --write-size: 1.25rem;  --write-lh: 1.7; }
+:root[data-write='pen']      { --write-font: var(--font-pen);      --write-size: 1.625rem; --write-lh: 1.45; }
+:root[data-write='hand']     { --write-font: var(--font-script);   --write-size: 1.75rem;  --write-lh: 1.45; }
+:root[data-write='hand'] .ProseMirror { letter-spacing: 0.01em; }
+:root[data-write]:not([data-write='book']) :is(.ProseMirror, .rich) { font-family: var(--write-font); font-size: var(--write-size); line-height: var(--write-lh); }
+:root[data-write]:not([data-write='book']) .ProseMirror h2 { font-family: var(--write-font); font-weight: 400; font-size: calc(var(--write-size) * 1.3); }
+:root[data-write]:not([data-write='book']) :is(.ProseMirror, .rich) :is(p, li):dir(rtl) { font-family: var(--font-serif); font-size: var(--fs-body); line-height: 1.9; }
 
 /* Editor */
 .toolbar {
@@ -378,8 +386,6 @@
 .rich h2 { margin-block: 1.2em 0.4em; font-weight: 600; font-size: var(--fs-22); line-height: 1.3; }
 .rich ul, .rich ol { padding-inline-start: 1.4em; margin-block: 0.6em; }
 .rich blockquote { margin-inline: 0; padding-inline-start: 1em; border-inline-start: 2px solid var(--page-line); color: var(--ink-soft); }
-:root[data-write='hand'] .rich { font-family: var(--font-script); font-size: 1.75rem; line-height: 1.45; }
-:root[data-write='hand'] .rich :is(p, li):dir(rtl) { font-family: var(--font-serif); font-size: var(--fs-body); line-height: 1.9; }
 .spread-foot {
   display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); margin-block-start: var(--sp-4); color: var(--ink-soft);
   font-family: var(--font-ui); font-size: var(--fs-13);

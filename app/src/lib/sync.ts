@@ -365,6 +365,21 @@ export class EntrySession {
     this.listeners.clear()
   }
 
+  /**
+   * The entry was deleted on the server: stop saving it and drop this device's copy (draft, rescue copy).
+   * Only call after the server confirmed, so no words are lost on a failed delete.
+   */
+  async discard() {
+    if (this.closed) return
+    this.closed = true
+    for (const k of Object.keys(this.timers) as (keyof typeof this.timers)[]) this.clear(k)
+    this.unsubscribe()
+    this.listeners.clear()
+    await this.writeChain.catch(() => {})
+    await this.deps.store.mutate(this.id, () => DELETE)
+    this.deps.rescue.del(this.id)
+  }
+
   // ---- internals ----------------------------------------------------------------------------------------------
 
   private clear(k: keyof EntrySession['timers']) {

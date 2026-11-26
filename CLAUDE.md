@@ -143,6 +143,10 @@ App lives in `app/`: Vite + React + TypeScript, vite-plugin-pwa, react-router, P
 - The build copies index.html to 404.html so a refresh on /write works (Pages can't rewrite).
 - The repo is public: the spec PDFs are untracked and git-ignored (`*.pdf`, `docs/`), the Supabase project URL is not in tracked files, only the publishable key ever leaves the machine (via the Actions secret, and it is public by design). README says all rights reserved. Supabase Auth Site URL and Redirect URLs must list the Pages address.
 
+## Delete an entry and writing styles
+- Write footer "Delete entry" (inline confirm) = soft delete: `deleteEntryRemote` sets `entries.deleted_at` (RLS: can_edit; online only). Lists, search, Read and exports already skip deleted rows. The session is flushed first (so the row exists), then `EntrySession.discard()` stops saves and removes this device's draft and rescue copy. No restore UI yet; the row stays in the database.
+- Writing styles (`WRITING_STYLES` in `theme.tsx`, `html[data-write]`): book (default), print (Patrick Hand), notebook (Kalam), pen (Caveat), hand (Windsong, shown as "Flourish"). Each sets `--write-font/size/lh` in components.css; Arabic paragraphs stay in book type. Fonts are self-hosted in `public/fonts` with `@font-face` in fonts.css.
+
 ## Status
 Phase 9 complete (not yet exercised against Lemon Squeezy or a deployed function): migration 0010, webhook Edge Function, Unlock screen, trial messaging, refund/read-only states. 148 DB checks, SQL rules mutation-tested (9 of 10; the survivor is an unreachable label).
 Phase 8 complete: migration 0009, prompt seed validator + SQL loader, die with no-repeat-in-20 roll, Desk card with depth/mood/time filters, Write-about-this handoff. 141 DB checks, 245 client tests (roll/filter logic mutation-tested). Real Supabase: run 0009, re-run rls.test.sql, then load prompts.sql.

@@ -22,6 +22,7 @@ export const preview: {
   range?: (start: string, end: string | null) => Promise<EntrySummary[]>
   remoteToday?: (today: string) => Promise<{ id: string; updated_at: string } | null>
   rpc?: Rpc
+  deleteEntry?: (id: string) => Promise<void>
   photos?: PhotoBackend & MediaApi
   letters?: () => Promise<LetterRow[]>
   prompts?: () => Promise<PromptRow[]>

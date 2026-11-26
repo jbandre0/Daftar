@@ -100,6 +100,21 @@ export async function saveEntryRemote(content: EntryContent, baseRevision: numbe
   return res.data as SaveResult
 }
 
+/**
+ * Take an entry out of the journal. It is a soft delete (`deleted_at`): lists, search, Read and exports skip it, the row
+ * stays in the database. Needs the network: deleting from a stale offline copy could not be undone cleanly elsewhere.
+ */
+export async function deleteEntryRemote(id: string): Promise<void> {
+  if (preview.deleteEntry) return preview.deleteEntry(id)
+  let res
+  try {
+    res = await supabase.from('entries').update({ deleted_at: new Date().toISOString() }).eq('id', id).is('deleted_at', null)
+  } catch (e) {
+    throw new OfflineError(String(e))
+  }
+  if (res.error) throw classify(res.error, res.status)
+}
+
 export async function fetchEntry(id: string): Promise<EntryRow | null> {
   const { data, error, status } = await supabase.from('entries').select(ENTRY_COLUMNS).eq('id', id).maybeSingle()
   if (error) throw classify(error, status)

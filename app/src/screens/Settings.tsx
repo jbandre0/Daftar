@@ -1,5 +1,5 @@
 import { Screen } from '../components/Screen'
-import { useTheme } from '../theme'
+import { WRITING_STYLES, useTheme } from '../theme'
 import { useAuth } from '../auth'
 import { settingsLine } from '../lib/licence'
 import { writeState } from '../lib/account'
@@ -40,16 +40,15 @@ export function Settings() {
         <div className="card">
           <h2>Writing style</h2>
           <p style={{ marginBlockEnd: 'var(--sp-4)' }}>
-            Book is a warm reading serif, easy over long entries. Handwriting is a hairline script, lovely for a few lines and harder to read
-            at length. Arabic always stays in Naskh.
+            Book is a warm reading serif, easy over long entries. Print, Notebook and Quick pen are handwriting you can still read page after
+            page. Flourish is a hairline script, lovely for a few lines and harder to read at length. Arabic always stays in Naskh.
           </p>
           <div className="seg" role="group" aria-label="Writing style">
-            <button aria-pressed={writing === 'book'} onClick={() => setWriting('book')}>
-              Book
-            </button>
-            <button aria-pressed={writing === 'hand'} onClick={() => setWriting('hand')}>
-              Handwriting
-            </button>
+            {WRITING_STYLES.map((w) => (
+              <button key={w.id} aria-pressed={writing === w.id} onClick={() => setWriting(w.id)}>
+                {w.label}
+              </button>
+            ))}
           </div>
         </div>
         <div className="card">

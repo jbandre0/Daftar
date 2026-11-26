@@ -89,6 +89,9 @@
 
 :root {
   /* Type: Windsong for display moments, Newsreader for the book, Figtree for the interface */
+  --font-print: 'Daftar Print', 'Daftar Serif', cursive;
+  --font-notebook: 'Daftar Notebook', 'Daftar Serif', cursive;
+  --font-pen: 'Daftar Pen', 'Daftar Serif', cursive;
   --font-script: 'Daftar Script', 'Daftar Naskh', 'Snell Roundhand', cursive;
   --font-serif: 'Daftar Serif', 'Daftar Naskh', Georgia, serif;
   --font-ui: 'Daftar Sans', 'Daftar Plex Arabic', system-ui, sans-serif;

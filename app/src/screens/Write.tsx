@@ -4,7 +4,7 @@ import { useAuth } from '../auth'
 import { chaptersFor } from '../lib/organize'
 import { Editor } from '../editor/Editor'
 import { useEntrySession, useSessionState } from '../editor/useEntrySession'
-import { EMPTY_DOC, countWords, docToText, localDate, parseEntryDate, trackOf, type EntryContent } from '../lib/entries'
+import { EMPTY_DOC, OfflineError, countWords, deleteEntryRemote, docToText, localDate, parseEntryDate, trackOf, type EntryContent } from '../lib/entries'
 import type { Track } from '../lib/organize'
 import { EntryMeta } from '../editor/EntryMeta'
 import { LetterPanel } from '../editor/LetterPanel'
@@ -92,6 +92,23 @@ export function Write() {
   const state = writeState(license)
   // The server decides; this only avoids inviting typing that can't be saved.
   const editable = !!session && !session.unavailable && state !== 'readonly' && !(state === 'grace' && session.status === 'idle')
+
+  const navigate = useNavigate()
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleteNote, setDeleteNote] = useState<string | null>(null)
+  const deleteEntry = async () => {
+    if (!session) return
+    setDeleteNote(null)
+    try {
+      await session.flush() // make sure the page exists on the server before it is removed there
+      await deleteEntryRemote(session.id)
+      await session.discard()
+      navigate('/browse', { replace: true })
+    } catch (e) {
+      setConfirmingDelete(false)
+      setDeleteNote(e instanceof OfflineError ? 'Connect to the internet to delete this entry.' : "Couldn't delete this entry. Nothing was removed.")
+    }
+  }
 
   const [photoNotice, setPhotoNotice] = useState<string | null>(null)
   const [pickingDate, setPickingDate] = useState(!!startState?.pickDate)
@@ -250,10 +267,25 @@ export function Write() {
         )}
         <div className="write-foot">
           <span>{c.word_count} {c.word_count === 1 ? 'word' : 'words'}</span>
-          <Link className="btn btn-quiet" to="/write/new">
-            New entry
-          </Link>
+          <span className="write-foot-actions">
+            {editable && !confirmingDelete && (
+              <button type="button" className="btn btn-quiet" onClick={() => setConfirmingDelete(true)}>Delete entry</button>
+            )}
+            <Link className="btn btn-quiet" to="/write/new">
+              New entry
+            </Link>
+          </span>
         </div>
+        {confirmingDelete && (
+          <div className="delete-confirm" role="alertdialog" aria-label="Delete this entry">
+            <p>Delete this entry? It leaves your journal and your exports.</p>
+            <div className="row">
+              <button type="button" className="btn btn-primary" onClick={() => void deleteEntry()}>Delete</button>
+              <button type="button" className="btn btn-quiet" onClick={() => setConfirmingDelete(false)}>Keep it</button>
+            </div>
+          </div>
+        )}
+        {deleteNote && <p className="save-note" role="status">{deleteNote}</p>}
       </article>
     </div>
   )

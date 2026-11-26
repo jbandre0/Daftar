@@ -388,6 +388,13 @@ export async function maybeInstallPreview() {
   Object.assign(syncDeps, { save, fetch: fetchEntry, isOnline: () => !isOffline() })
   Object.assign(preview, {
     active: true,
+    deleteEntry: async (id: string) => {
+      await sleep(120)
+      if (isOffline()) throw new OfflineError('preview offline')
+      const db = readDb()
+      delete db.rows[id]
+      writeDb(db)
+    },
     photos: photoBackend,
     auth,
     organize,
